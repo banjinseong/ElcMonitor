@@ -1,0 +1,12 @@
+package charge.station.monitor.dto.history;
+
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+public class CarHistoryDTO {
+
+}
