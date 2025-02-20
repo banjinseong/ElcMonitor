@@ -1,11 +1,13 @@
 package charge.station.monitor.domain;
 
 import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 @Getter
 @NoArgsConstructor
+@AllArgsConstructor
 @Entity
 public class Center {
 
@@ -19,4 +21,5 @@ public class Center {
 
     @Column(name = "center_num", nullable = false)
     private String centerNum;  // 센터 번호 (서울_1, 서울_2 등)
+
 }

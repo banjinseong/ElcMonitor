@@ -1,6 +1,7 @@
 package charge.station.monitor.domain;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
@@ -17,8 +18,17 @@ public class Charge {
     @Column(name = "charge_num", nullable = false, unique = true)
     private String chargeNum;  // 충전소 이름(번호)
 
-    @Column(name = "charge_addr")
-    private String chargeAddr;  // 위치 정보 (주소)
+    @Column(name = "instl_lc")
+    private String instlLc;  // 위치 정보 (주소)
+
+    @Column(name = "instl_de")
+    private String instlDe;  // 설치날짜
+
+    @Column(name = "company_nm")
+    private String companyNm;  // 충전기 회사
+
+    @Column(name = "model_nm")
+    private String modelNm;  // 충전기 모델
 
     @ManyToOne
     @JoinColumn(name = "center_id", nullable = false)
@@ -26,5 +36,13 @@ public class Charge {
 
     @OneToOne(mappedBy = "charge", cascade = CascadeType.ALL)
     private ChargeSttus chargeSttus;  // 충전소 현황
+
+    @Builder
+    public Charge(Long chargeId, String chargeNum, String instlLc, Center center){
+        this.chargeId = chargeId;
+        this.chargeNum = chargeNum;
+        this.instlLc = instlLc;
+        this.center = center;
+    }
 }
 

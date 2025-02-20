@@ -1,6 +1,7 @@
 package charge.station.monitor.config;
 
 
+import charge.station.monitor.config.filter.ApiKeyFilter;
 import charge.station.monitor.config.handler.CustomAccessDeniedHandler;
 import charge.station.monitor.config.handler.CustomAuthenticationEntryPoint;
 import charge.station.monitor.config.jwt.JwtAuthFilter;
@@ -31,6 +32,15 @@ public class SecurityConfig {
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
     private final CustomAccessDeniedHandler accessDeniedHandler;
     private final RedisTemplate<String, Object> redisTemplate;
+
+
+    /**
+     * RawData 전용 엔드포인트
+     */
+    private static final String[] RAWDATA_WHITELIST = {
+            "/rawData/**" // 현장 장비에서 요청하는 엔드포인트
+    };
+
 
     /**
      * 유저 전용 접근 권한
@@ -72,6 +82,7 @@ public class SecurityConfig {
 
         //JwtAuthFilter를 UsernamePasswordAuthenticationFilter 앞에 추가
         http.addFilterBefore(new JwtAuthFilter(jwtUtil,redisTemplate), UsernamePasswordAuthenticationFilter.class);
+        http.addFilterBefore(new ApiKeyFilter(), UsernamePasswordAuthenticationFilter.class); // 🔹 API Key 필터 추가
 
         http.exceptionHandling((exceptionHandling) -> exceptionHandling
                 .authenticationEntryPoint(authenticationEntryPoint)
@@ -84,7 +95,9 @@ public class SecurityConfig {
                 .requestMatchers("/user/logout").authenticated() // 🔹 로그아웃은 인증된 사용자만 가능
                 .requestMatchers(ADMIN_WHITELIST).hasRole("ADMIN")
                 .requestMatchers(USER_WHITELIST).hasRole("USER")
+                .requestMatchers(RAWDATA_WHITELIST).permitAll() // 위에 api키에서 인증 완료되어야 접근 가능하기때문,.
                 .anyRequest().denyAll() // 그 외 모든 요청은 접근 불가.
+
         );
 
         return http.build();
