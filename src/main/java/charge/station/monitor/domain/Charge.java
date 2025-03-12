@@ -5,6 +5,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 
+import java.time.LocalDate;
+
 @Getter
 @NoArgsConstructor
 @Entity
@@ -22,7 +24,7 @@ public class Charge {
     private String instlLc;  // 위치 정보 (주소)
 
     @Column(name = "instl_de")
-    private String instlDe;  // 설치날짜
+    private LocalDate instlDe;  // 설치날짜
 
     @Column(name = "company_nm")
     private String companyNm;  // 충전기 회사

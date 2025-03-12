@@ -5,7 +5,7 @@ import charge.station.monitor.domain.ChargeSttus;
 import charge.station.monitor.domain.RawDataImg;
 import charge.station.monitor.domain.history.CarHistory;
 import charge.station.monitor.dto.cache.ChargeCacheDTO;
-import charge.station.monitor.repository.CarHistoryRepository;
+import charge.station.monitor.repository.history.CarHistoryRepository;
 import charge.station.monitor.repository.ChargeRepository;
 import charge.station.monitor.repository.ChargeSttusRepository;
 import charge.station.monitor.repository.RawDataImgRepository;

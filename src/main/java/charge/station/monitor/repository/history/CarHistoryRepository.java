@@ -1,4 +1,4 @@
-package charge.station.monitor.repository;
+package charge.station.monitor.repository.history;
 
 import charge.station.monitor.domain.Charge;
 import charge.station.monitor.domain.history.CarHistory;
