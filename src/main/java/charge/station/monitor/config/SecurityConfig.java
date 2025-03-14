@@ -91,7 +91,7 @@ public class SecurityConfig {
 
         // 권한 규칙 작성
         http.authorizeHttpRequests(authorize -> authorize
-                .requestMatchers("/user/login", "/user/join", "/user/refresh").permitAll() // 🔹 로그인, 회원가입, 리프레시 토큰은 누구나 접근 가능
+                .requestMatchers("/user/login", "/user/join", "/user/refresh", "/user/sendCode", "/user/verifyCode").permitAll() // 🔹 로그인, 회원가입, 리프레시 토큰은 누구나 접근 가능
                 .requestMatchers("/user/logout").authenticated() // 🔹 로그아웃은 인증된 사용자만 가능
                 .requestMatchers(ADMIN_WHITELIST).hasRole("ADMIN")
                 .requestMatchers(USER_WHITELIST).hasRole("USER")

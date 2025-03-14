@@ -1,6 +1,6 @@
 package charge.station.monitor.config.handler;
 
-import charge.station.monitor.dto.ErrorResponseDto;
+import charge.station.monitor.dto.error.ErrorResponseDto;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

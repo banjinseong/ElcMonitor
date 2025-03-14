@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>이메일 인증</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f9f9f9;">
+
+<table align="center" width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);">
+    <tr>
+        <td align="center" style="font-size: 24px; font-weight: bold; color: #333; padding: 20px 0;">
+            홍익솔루스 이메일 인증
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="font-size: 16px; color: #555; padding: 10px 0;">
+            <p>안녕하세요,</p>
+            <p>홍익솔루스 서비스 이용을 위한 인증번호입니다.</p>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="font-size: 22px; font-weight: bold; color: #007bff; padding: 15px 0;">
+            인증번호: <span style="color: #ff5722;">[[${authCode}]]</span>
+        </td>
+    </tr>
+    <tr>
+        <td align="center" style="font-size: 14px; color: #888; padding: 20px 0;">
+            <p>해당 인증번호는 <strong>3분 후</strong> 만료됩니다.</p>
+            <p>만약 요청하지 않았다면 이 이메일을 무시하셔도 됩니다.</p>
+        </td>
+    </tr>
+</table>
+
+</body>
+</html>

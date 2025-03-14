@@ -42,6 +42,9 @@ public class User {
     @Column(name = "update_date")
     private LocalDate updateDate;
 
+    @Column(name = "email")
+    private String email;
+
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
     private List<UserRegion> userRegions = new ArrayList<>();
 
@@ -51,11 +54,12 @@ public class User {
     }
 
     @Builder
-    public User(String loginId, String password, String userName, String company){
+    public User(String loginId, String password, String userName, String company, String email){
         this.loginId = loginId;
         this.password = password;
         this.userName = userName;
         this.company = company;
+        this.email = email;
         this.createDate = LocalDate.now();
         this.userRole = UserRole.USER;
     }

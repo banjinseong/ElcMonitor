@@ -1,4 +1,4 @@
-package charge.station.monitor.dto;
+package charge.station.monitor.dto.error;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -12,6 +12,6 @@ import java.time.LocalDateTime;
 public class ErrorResponseDto {
     private int status;
     private String message;
-    private LocalDateTime timestamp;
+    private LocalDateTime timestamp = LocalDateTime.now(); // 현재 시간 자동 설정
 
 }
