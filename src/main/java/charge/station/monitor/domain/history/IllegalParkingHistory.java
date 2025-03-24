@@ -24,8 +24,8 @@ public class IllegalParkingHistory {
     @Column(name = "record_time", nullable = false)
     private LocalDateTime recordTime; // 적발 시간
 
-    @Column(name = "illegal_type", nullable = false)
-    private String illegalType; // 적발 사유 (일반차량 진입, 점유시간 초과 등)
+    @Column(name = "type", nullable = false)
+    private String type; // 적발 사유 (일반차량 진입, 점유시간 초과 등)
 
     @Column(name = "proc_sttus")
     private Boolean procSttus; // 사후 조치 여부 (처리 유무)
@@ -35,10 +35,10 @@ public class IllegalParkingHistory {
     private Charge charge; // 충전소 ID (외래키)
 
     @Builder
-    public IllegalParkingHistory(String carNum, LocalDateTime recordTime, String illegalType, Boolean procSttus, Charge charge) {
+    public IllegalParkingHistory(String carNum, LocalDateTime recordTime, String type, Boolean procSttus, Charge charge) {
         this.carNum = carNum;
         this.recordTime = recordTime;
-        this.illegalType = illegalType;
+        this.type = type;
         this.procSttus = procSttus;
         this.charge = charge;
     }
