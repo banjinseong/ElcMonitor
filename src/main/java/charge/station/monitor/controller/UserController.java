@@ -1,9 +1,6 @@
 package charge.station.monitor.controller;
 
-import charge.station.monitor.dto.user.EMailRequestDTO;
-import charge.station.monitor.dto.user.UserJoinRequestDTO;
-import charge.station.monitor.dto.user.UserLoginRequestDTO;
-import charge.station.monitor.dto.user.VerifyRequestDTO;
+import charge.station.monitor.dto.user.*;
 import charge.station.monitor.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -104,7 +101,7 @@ public class UserController {
         if (!request.getType().equals("signup") && !request.getType().equals("find")) {
             throw new IllegalArgumentException("잘못된 요청 유형입니다.");
         }
-        userService.requestAuthCode(request.getEmail(), request.getType());
+        userService.requestAuthCode(request);
         return ResponseEntity.ok("인증번호가 이메일로 전송되었습니다.");
     }
 
@@ -114,8 +111,38 @@ public class UserController {
         if (!request.getType().equals("signup") && !request.getType().equals("find")) {
             throw new IllegalArgumentException("잘못된 요청 유형입니다.");
         }
-        boolean isVerified = userService.verifyAuthCode(request.getEmail(), request.getType(), request.getCode());
-        return ResponseEntity.ok(isVerified ? "인증 성공" : "인증 실패");
+        userService.verifyAuthCode(request.getEmail(), request.getType(), request.getCode());
+        return ResponseEntity.ok("인증 성공");
+    }
+
+
+    /**
+     * 비밀번호 찾기에서 비밀번호 변경 코드.
+     */
+    @PutMapping("findPassword")
+    public ResponseEntity<String> findPassword(@RequestBody EMailRequestDTO request){
+        userService.updatePassword(request.getLoginId(), request.getPassword());
+        return ResponseEntity.ok("비밀번호 변경 성공");
+    }
+
+
+    /**
+     * 비밀번호 변경시 요청 코드.
+     */
+    @PutMapping("resetPssword")
+    public ResponseEntity<String> resetPassword(@RequestHeader("Authorization") String authorizationHeader,
+                                                @RequestBody UpdatePasswordDTO dto){
+
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+        }
+
+        // ✅ "Bearer " 제거 후 순수한 Access Token 추출
+        String accessToken = authorizationHeader.substring(7).trim();
+
+        userService.updatePassword(accessToken, dto.getPassword(), dto.getNewPassword());
+
+        return ResponseEntity.ok("비밀번호 변경 성공");
     }
 
 }

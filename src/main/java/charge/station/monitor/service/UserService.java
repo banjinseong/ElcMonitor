@@ -1,17 +1,20 @@
 package charge.station.monitor.service;
 
 
-import charge.station.monitor.config.SimplePasswordEncoder;
+import charge.station.monitor.config.SecurePasswordEncoder;
 import charge.station.monitor.config.jwt.JwtUtil;
 import charge.station.monitor.domain.User;
 import charge.station.monitor.dto.error.CustomException;
+import charge.station.monitor.dto.user.EMailRequestDTO;
 import charge.station.monitor.dto.user.JwtUserInfo;
 import charge.station.monitor.dto.user.UserJoinRequestDTO;
 import charge.station.monitor.dto.user.UserLoginRequestDTO;
 import charge.station.monitor.repository.UserRepository;
+import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -20,6 +23,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -28,7 +32,7 @@ import java.util.stream.Collectors;
 public class UserService {
     private final JwtUtil jwtUtil;
     private final UserRepository userRepository;
-    private final SimplePasswordEncoder passwordEncoder;
+    private final SecurePasswordEncoder passwordEncoder;
     private final RedisTemplate<String, Object> redisTemplate;
     private final EMailService EMailService;
 
@@ -64,7 +68,36 @@ public class UserService {
         }
 
         redisTemplate.delete(redisKey); // 인증 성공 후 Redis에서 삭제
-        return true;
+    }
+
+
+    /**
+     * 비밀번호 {찾기} 경로를 통한 비밀번호 변경
+     */
+    @Transactional
+    public void updatePassword(String loginId, String password) {
+        User user = userRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new CustomException("유효하지 않은 사용자 정보입니다: " + loginId, HttpStatus.NOT_FOUND));
+
+        user.encodePassword(passwordEncoder.encode(password));
+    }
+
+    /**
+     * 비밀번호 {변경} 경로를 통한 비밀번호 변경.
+     */
+    @Transactional
+    public void updatePassword(String accessToken, String password, String newPassword){
+        if (jwtUtil.validateToken(accessToken)) {
+            Long userId = jwtUtil.getUserId(accessToken);
+            User user = userRepository.findByUserId(userId)
+                    .orElseThrow(() -> new CustomException("유효하지 않은 사용자 정보입니다: " + userId, HttpStatus.NOT_FOUND));
+            if(!passwordEncoder.matches(password,user.getPassword())){
+                throw new CustomException("현재 비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED);
+            }
+            user.encodePassword(passwordEncoder.encode(newPassword));
+        } else {
+            throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED);
+        }
     }
 
 
@@ -91,17 +124,18 @@ public class UserService {
     }
 
 
-
-
+    /**
+     * 로그인 서비스 동작
+     */
     public String login(UserLoginRequestDTO userLoginRequestDTO){
         String loginId = userLoginRequestDTO.getLoginId();
         String password = userLoginRequestDTO.getPassword();
-        User user = userRepository.findByLoginId(loginId).orElse(null);
-        if(user==null){
-            throw new UsernameNotFoundException("아이디가 존재하지 않습니다.");
-        }
+
+        User user = userRepository.findByLoginId(loginId)
+                .orElseThrow(() -> new CustomException("아이디가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+
         if(!passwordEncoder.matches(password, user.getPassword())){
-            throw new BadCredentialsException("비밀번호가 일치하지 않습니다.");
+            throw new CustomException("비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED);
         }
 
         JwtUserInfo info = new JwtUserInfo(user.getUserId()
