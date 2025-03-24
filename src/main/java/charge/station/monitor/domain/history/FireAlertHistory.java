@@ -24,14 +24,22 @@ public class FireAlertHistory {
     @Column(name = "proc_sttus")
     private Boolean procSttus; // 사후 조치 여부 (처리 유무)
 
+    @Column(name = "type")
+    private String type; //이상감지 종류
+
     @ManyToOne
     @JoinColumn(name = "charge_id", nullable = false)
     private Charge charge; // 충전소 ID (외래키)
 
     @Builder
-    public FireAlertHistory(LocalDateTime recordTime, Boolean procSttus, Charge charge) {
+    public FireAlertHistory(LocalDateTime recordTime, Charge charge, String type) {
         this.recordTime = recordTime;
-        this.procSttus = procSttus;
         this.charge = charge;
+        this.type = type;
+    }
+
+
+    public void writeProcSttus() {
+        this.procSttus = true;
     }
 }

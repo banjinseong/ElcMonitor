@@ -2,6 +2,7 @@ package charge.station.monitor.controller;
 
 import charge.station.monitor.dto.history.HistoryCreateFaultRequestDTO;
 import charge.station.monitor.dto.history.HistoryOrderRequestDTO;
+import charge.station.monitor.dto.history.HistoryReasonDTO;
 import charge.station.monitor.service.history.CarHistoryService;
 import charge.station.monitor.service.history.FaultHistoryService;
 import charge.station.monitor.service.history.FireAlertHistoryService;
@@ -152,6 +153,17 @@ public class WebController {
 
         return carHistoryService.carSelect(accessToken, historyOrderRequestDTO, page, sortField, sortDirection);
 
+    }
+
+
+    /**
+     * 화재 사후처리 입력
+     */
+    @PostMapping("/history/fire/reason")
+    public ResponseEntity<?> fireReason(@RequestBody HistoryReasonDTO dto) {
+        fireAlertHistoryService.fireReasonChk(dto);
+
+        return ResponseEntity.ok(202);
     }
 
 

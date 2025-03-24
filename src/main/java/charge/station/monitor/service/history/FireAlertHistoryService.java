@@ -3,8 +3,10 @@ package charge.station.monitor.service.history;
 import charge.station.monitor.config.jwt.JwtUtil;
 import charge.station.monitor.domain.history.FireAlertHistory;
 import charge.station.monitor.domain.history.QFireAlertHistory;
+import charge.station.monitor.dto.error.CustomException;
 import charge.station.monitor.dto.history.HistoryOrderRequestDTO;
 import charge.station.monitor.dto.history.HistoryOrderResponseDTO;
+import charge.station.monitor.dto.history.HistoryReasonDTO;
 import charge.station.monitor.repository.history.FireAlertHistoryRepository;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
@@ -152,6 +154,21 @@ public class FireAlertHistoryService {
             return new OrderSpecifier<>(Order.ASC, sortedExpression);
         }
     }
+
+
+    /**
+     * 사후처리 작성 서비스
+     */
+    @Transactional
+    public void fireReasonChk(HistoryReasonDTO dto){
+        FireAlertHistory fireAlertHistory = fireAlertHistoryRepository.findById(dto.getId())
+                .orElseThrow(() -> new CustomException("이력선택중 오류가 발생했습니다.", HttpStatus.BAD_REQUEST));
+
+        //사후 처리 확인 완료.
+        fireAlertHistory.writeProcSttus();
+    }
+
+
 
 
 }
