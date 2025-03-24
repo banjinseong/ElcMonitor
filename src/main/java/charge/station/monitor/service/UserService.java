@@ -34,16 +34,25 @@ public class UserService {
 
 
 
-    // ✅ 이메일 인증번호 요청 (signup / reset 구분)
-    public void requestAuthCode(String email, String type) {
-        if (type.equals("signup") && userRepository.existsByEmail(email)) {
-            throw new IllegalStateException("이미 가입된 이메일입니다.");
+    // ✅ 이메일 인증번호 요청 (signup / find 구분)
+    public void requestAuthCode(EMailRequestDTO dto) {
+        if (dto.getType().equals("signup") && userRepository.existsByEmail(dto.getEmail())) {
+            throw new CustomException("이미 가입된 이메일입니다.", HttpStatus.BAD_REQUEST);
+        }else{
+            if (!userRepository.existsByLoginId(dto.getLoginId())) {
+                throw new CustomException("존재하지 않는 ID입니다.", HttpStatus.BAD_REQUEST);
+            }
+            Optional<String> userEmail = userRepository.findEmailByLoginId(dto.getLoginId());
+            if (userEmail.isEmpty() || !userEmail.get().equals(dto.getEmail())) {
+                throw new CustomException("ID에 해당하는 이메일과 일치하지 않습니다.", HttpStatus.BAD_REQUEST);
+            }
         }
-        EMailService.sendAuthCode(email, type); // 인증번호 전송
+        EMailService.sendAuthCode(dto.getEmail(), dto.getType()); // 인증번호 전송
     }
 
-    // ✅ 인증번호 검증 (signup / reset 구분)
-    public boolean verifyAuthCode(String email, String type, String inputCode) {
+
+    // ✅ 인증번호 검증 (signup / find 구분)
+    public void verifyAuthCode(String email, String type, String inputCode) {
         String redisKey = "auth_code:" + type + ":" + email; // "auth_code:signup:email" or "auth_code:reset:email"
         String storedCode = (String) redisTemplate.opsForValue().get(redisKey); // Redis에서 값 가져오기
 
