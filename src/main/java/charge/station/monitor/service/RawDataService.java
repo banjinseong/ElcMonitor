@@ -4,16 +4,20 @@ import charge.station.monitor.domain.Charge;
 import charge.station.monitor.domain.ChargeSttus;
 import charge.station.monitor.domain.RawDataImg;
 import charge.station.monitor.domain.RawDataPower;
+import charge.station.monitor.domain.history.FireAlertHistory;
 import charge.station.monitor.dto.cache.ChargeCacheDTO;
+import charge.station.monitor.dto.error.CustomException;
 import charge.station.monitor.dto.rawdata.LicensePlateResponseDTO;
 import charge.station.monitor.dto.rawdata.RawDataImgRequestDTO;
 import charge.station.monitor.dto.rawdata.RawDataPowerRequestDTO;
 import charge.station.monitor.repository.*;
+import charge.station.monitor.repository.history.FireAlertHistoryRepository;
 import jakarta.annotation.Resource;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -40,12 +44,14 @@ import java.util.concurrent.TimeUnit;
 @RequiredArgsConstructor
 public class RawDataService {
 
+    private static final int ANOMALY_LIMIT = 3;
+
     private final RawDataPowerRepository rawDataPowerRepository;
     private final ChargeRepository chargeRepository;
     private final WebClient webClient;
     private final RedisTemplate<String, Object> redisTemplate;
     private final ChargeSttusRepository chargeSttusRepository;
-
+    private final FireAlertHistoryRepository fireAlertHistoryRepository;
     private final RawDataTransaction rawDataTransaction;
 
     @Resource(name = "ImgData-Task")
@@ -243,32 +249,58 @@ public class RawDataService {
 
     /**
      * 전력값 처리
+     * 전력값을 기준으로 현재 충전소의 충전기가 충전중인지 판별.
      */
     @Transactional
     public void savePower(RawDataPowerRequestDTO rawDataPowerRequestDTO){
 
         String chargeId = rawDataPowerRequestDTO.getChargeId().toString();
+        double currentPower = rawDataPowerRequestDTO.getPower();
 
 
         Charge charge = chargeRepository.findById(rawDataPowerRequestDTO.getChargeId())
-                .orElseThrow(() -> {
-                    // ✅ 로그에 남기기
-                    log.error("유효하지 않은 충전소 정보입니다 : {}", rawDataPowerRequestDTO.getChargeId());
-                    return new EntityNotFoundException("유효하지 않은 충전소 정보입니다 : " + rawDataPowerRequestDTO.getChargeId());
-                });
+                .orElseThrow(() -> new CustomException("유효하지 않은 충전소 정보입니다 : " + rawDataPowerRequestDTO.getChargeId(), HttpStatus.NOT_FOUND));
+        
         // Redis 캐시 데이터 확인
         Map<Object, Object> cachedSttus = redisTemplate.opsForHash().entries(chargeId);
 
-        ChargeCacheDTO nowSttus = new ChargeCacheDTO();
-        nowSttus.setChargeId(rawDataPowerRequestDTO.getChargeId());
-        nowSttus.setPower(rawDataPowerRequestDTO.getPower());
 
+        // 3. 원시 데이터는 무조건 저장
+        RawDataPower rawDataPower = RawDataPower.builder()
+                .power(currentPower)
+                .charge(charge)
+                .build();
+        rawDataPowerRepository.save(rawDataPower);
+
+        // 4. 캐시가 비어있으면 전력값 저장 후 종료 (상태 판단은 다음 요청부터)
         if (cachedSttus.isEmpty()) {
-            //캐시가 등록 안되어있으면 현재의 정보를 캐시에 업데이트.
-            redisTemplate.opsForHash().put(chargeId, "power", nowSttus.getPower());
-        }else{
+            redisTemplate.opsForHash().put(chargeId, "power", currentPower);
+        }
+        else{
+
+
             // 기존 캐시 정보 불러오기
-            ChargeCacheDTO previousSttus = getCachedData(cachedSttus, chargeId);
+            double previousPower = Double.parseDouble(cachedSttus.get("power").toString());
+
+            // 6. 이상 감지 로직
+            //과전력?
+            if (currentPower > 40) {
+                increaseAnomalyCount("overcurrent", chargeId, charge);
+            }
+
+            //50퍼이상 급상승했는가
+            if (previousPower > 0) {
+                double rate = Math.abs((currentPower - previousPower) / previousPower) * 100;
+                if (rate > 50.0) {
+                    increaseAnomalyCount("spike", chargeId, charge);
+                }
+            }
+
+            //10전력량을 기준으로 왔다갔다 하는가?(충전중<>충전x)
+            if ((previousPower >= 10 && currentPower < 10) || (previousPower < 10 && currentPower >= 10)) {
+                increaseAnomalyCount("fluctuation", chargeId, charge);
+            }
+
 
 
             //충전소 현황 불러오기(충전중인지 판단 위해서.)
@@ -281,27 +313,52 @@ public class RawDataService {
 
             //현재 상태와 캐시데이터 값 비교
             //1. 충전중x + 현재 전력값이 높은경우 -> 충전시작
-            if(!chargeSttus.getPowerSttus() && nowSttus.getPower()>=10) {
+            if(!chargeSttus.getPowerSttus() && currentPower>=10) {
                 chargeSttus.startCharging();
 
 
             }
             //2. 충전중 + 현재 전력값이 낮은경우 -> 충전취소
-            else if(chargeSttus.getPowerSttus() && nowSttus.getPower()<10){
+            else if(chargeSttus.getPowerSttus() && currentPower<10){
                 chargeSttus.startCharging();
             }
 
-            //db에 데이터에 저장
-            RawDataPower rawDataPower = RawDataPower.builder().power(nowSttus.getPower()).charge(charge).build();
-            rawDataPowerRepository.save(rawDataPower);
 
             //캐시에 전력량 저장
-            redisTemplate.opsForHash().put(chargeId, "power", nowSttus.getPower());
+            redisTemplate.opsForHash().put(chargeId, "power", currentPower);
 
         }
 
 
     }
+    public void increaseAnomalyCount(String type, String chargeId, Charge charge) {
+        String key = type + ":" + chargeId;
 
+        // Redis에서 해당 키에 대해 숫자 증가 (기존 값 없으면 0 → 1로 초기화됨)
+        Long count = redisTemplate.opsForValue().increment(key);
+
+        // 처음 증가된 경우라면 (값이 없어서 새로 1이 됨), TTL 1분 설정
+        if (count != null && count == 1L) {
+            redisTemplate.expire(key, 1, TimeUnit.MINUTES);
+        }
+
+        // 이상 횟수가 기준을 초과한 경우 → 값을 0으로 재설정 (throw 대신)
+        if (count != null && count >= ANOMALY_LIMIT) {
+            // 🚨 이상 감지 횟수 초기화
+            redisTemplate.delete(key); // 🔥 카운터 자체 제거
+
+
+            /**
+             *  화재 이상감지 db 이력 추가 부분.
+             */
+            FireAlertHistory fireAlertHistory = FireAlertHistory.builder()
+                                                .recordTime(LocalDateTime.now())
+                                                .type(type)
+                                                .charge(charge)
+                                                .build();
+            fireAlertHistoryRepository.save(fireAlertHistory);
+
+        }
+    }
 
 }
