@@ -8,7 +8,7 @@ import lombok.NoArgsConstructor;
 @Data
 @AllArgsConstructor
 @NoArgsConstructor
-public class UserLoginRequestDTO {
+public class LoginRequestDTO {
 
     @NotNull(message = "아이디 입력은 필수입니다.")
     private String loginId;

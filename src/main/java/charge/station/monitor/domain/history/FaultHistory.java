@@ -49,8 +49,9 @@ public class FaultHistory {
         this.procSttus = false;
     }
 
-    public void update(LocalDateTime recordTime){
+    public void update(LocalDateTime recordTime, String faultReason){
         this.recordTime = recordTime;
+        this.faultReason = faultReason;
         this.procSttus = true;
     }
 }

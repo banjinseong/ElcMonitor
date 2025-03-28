@@ -4,9 +4,7 @@ import charge.station.monitor.config.jwt.JwtUtil;
 import charge.station.monitor.domain.history.FireAlertHistory;
 import charge.station.monitor.domain.history.QFireAlertHistory;
 import charge.station.monitor.dto.error.CustomException;
-import charge.station.monitor.dto.history.HistoryOrderRequestDTO;
-import charge.station.monitor.dto.history.HistoryOrderResponseDTO;
-import charge.station.monitor.dto.history.HistoryReasonDTO;
+import charge.station.monitor.dto.history.*;
 import charge.station.monitor.repository.history.FireAlertHistoryRepository;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
@@ -45,8 +43,8 @@ public class FireAlertHistoryService {
     /**
      * 고장 이력 조회(센터, 충전기, 기간설정, {차량번호})
      */
-    public ResponseEntity<?> fireSelect(String accessToken, HistoryOrderRequestDTO historyOrderRequestDTO,
-                                         int page, String sortField, String sortDirection) {
+    public HistoryMainResponseDTO<HistoryReadFireResponseDTO> fireSelect(String accessToken, HistoryMainRequestDTO historyMainRequestDTO,
+                                                                 int page, String sortField, String sortDirection) {
         int pageSize = 10; // 한 페이지당 최대 개수
         int currentPage = page <= 0 ? 1 : page; // 페이지 번호가 0 이하이면 1로 설정
         int offset = (currentPage - 1) * pageSize;
@@ -54,38 +52,47 @@ public class FireAlertHistoryService {
         // 1) 센터 ID 목록 생성
         List<Long> centerIds = new ArrayList<>();
 
-        if (historyOrderRequestDTO.getCenterId() == null) {
+        if (historyMainRequestDTO.getCenterId() == null) {
             if (jwtUtil.validateToken(accessToken)) {
                 List<String> managedRegions = jwtUtil.getManagedRegions(accessToken);
                 centerIds = managedRegions.stream().map(Long::parseLong).collect(Collectors.toList());
             } else {
-                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인 정보가 만료되었습니다.");
+                throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
             }
         } else {
-            centerIds.add(historyOrderRequestDTO.getCenterId());
+            centerIds.add(historyMainRequestDTO.getCenterId());
         }
 
         // 2) 페이징을 포함한 QueryDSL 조회
-        Page<FireAlertHistory> fireAlertHistories = findByDynamicConditions(historyOrderRequestDTO, centerIds, offset,
+        Page<FireAlertHistory> fireAlertHistories = findByDynamicConditions(historyMainRequestDTO, centerIds, offset,
                 pageSize, sortField, sortDirection);
 
 
         // 3) 결과를 DTO로 변환
-        List<FireAlertHistory> data = fireAlertHistories.getContent();
+        List<FireAlertHistory> fireAlertHistoryList = fireAlertHistories.getContent();
+        List<HistoryReadFireResponseDTO> items = fireAlertHistoryList.stream()
+                .map(f -> new HistoryReadFireResponseDTO(
+                        f.getFireAlertHistoryId(),
+                        f.getRecordTime(),
+                        f.getProcSttus(),
+                        f.getType(),
+                        f.getCharge().getCenter().getCenterNum() + "-" + f.getCharge().getChargeNum()  // 센터이름(번호)-충전소이름(번호)
+                ))
+                .toList();
+
         int total = (int) fireAlertHistories.getTotalElements();
         int totalPages = fireAlertHistories.getTotalPages();
 
-        HistoryOrderResponseDTO<FireAlertHistory> responseDTO = new HistoryOrderResponseDTO<>(data, total, currentPage, totalPages);
+        return new HistoryMainResponseDTO<>(items, total, currentPage, totalPages);
 
         // 4) 최종 응답
-        return ResponseEntity.ok(responseDTO);
     }
 
 
     /**
      * QueryDSL을 이용한 동적 조회
      */
-    private Page<FireAlertHistory> findByDynamicConditions(HistoryOrderRequestDTO requestDTO, List<Long> centerIds,
+    private Page<FireAlertHistory> findByDynamicConditions(HistoryMainRequestDTO requestDTO, List<Long> centerIds,
                                                            int offset, int pageSize, String sortField, String sortDirection) {
         QFireAlertHistory fireAlertHistory = QFireAlertHistory.fireAlertHistory;
         BooleanBuilder builder = new BooleanBuilder();
@@ -95,10 +102,10 @@ public class FireAlertHistoryService {
             builder.and(fireAlertHistory.charge.center.centerId.in(centerIds));
         }
 
-        // 2) 충전기 ID
-        if (requestDTO.getChargeId() != null) {
-            builder.and(fireAlertHistory.charge.chargeId.eq(requestDTO.getChargeId()));
-        }
+//        // 2) 충전기 ID
+//        if (requestDTO.getChargeId() != null) {
+//            builder.and(fireAlertHistory.charge.chargeId.eq(requestDTO.getChargeId()));
+//        }
 
         // 3) 기간 설정
         if (requestDTO.getStartTime() != null && requestDTO.getEndTime() != null) {
@@ -160,12 +167,14 @@ public class FireAlertHistoryService {
      * 사후처리 작성 서비스
      */
     @Transactional
-    public void fireReasonChk(HistoryReasonDTO dto){
-        FireAlertHistory fireAlertHistory = fireAlertHistoryRepository.findById(dto.getId())
-                .orElseThrow(() -> new CustomException("이력선택중 오류가 발생했습니다.", HttpStatus.BAD_REQUEST));
+    public void fireReasonChk(HistoryCreateFireReasonDTO dto){
+        for(Long id : dto.getIds()){
+            FireAlertHistory fireAlertHistory = fireAlertHistoryRepository.findById(id)
+                    .orElseThrow(() -> new CustomException("이력선택중 오류가 발생했습니다.", HttpStatus.BAD_REQUEST, 400));
 
-        //사후 처리 확인 완료.
-        fireAlertHistory.writeProcSttus();
+            //사후 처리 확인 완료.
+            fireAlertHistory.writeProcSttus();
+        }
     }
 
 

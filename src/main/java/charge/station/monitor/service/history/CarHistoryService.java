@@ -3,8 +3,10 @@ package charge.station.monitor.service.history;
 import charge.station.monitor.config.jwt.JwtUtil;
 import charge.station.monitor.domain.history.CarHistory;
 import charge.station.monitor.domain.history.QCarHistory;
-import charge.station.monitor.dto.history.HistoryOrderRequestDTO;
-import charge.station.monitor.dto.history.HistoryOrderResponseDTO;
+import charge.station.monitor.dto.history.HistoryMainRequestDTO;
+import charge.station.monitor.dto.history.HistoryMainResponseDTO;
+import charge.station.monitor.dto.history.HistoryReadCarResponseDTO;
+import charge.station.monitor.dto.history.HistoryReadIllegalResponseDTO;
 import charge.station.monitor.repository.history.CarHistoryRepository;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
@@ -41,10 +43,10 @@ public class CarHistoryService {
 
 
     /**
-     * 고장 이력 조회(센터, 충전기, 기간설정, {차량번호})
+     * 차량 주차 조회
      */
-    public ResponseEntity<?> carSelect(String accessToken, HistoryOrderRequestDTO historyOrderRequestDTO,
-                                         int page, String sortField, String sortDirection) {
+    public HistoryMainResponseDTO<HistoryReadCarResponseDTO> carSelect(String accessToken, HistoryMainRequestDTO historyMainRequestDTO,
+                                                                       int page, String sortField, String sortDirection) {
         int pageSize = 10; // 한 페이지당 최대 개수
         int currentPage = page <= 0 ? 1 : page; // 페이지 번호가 0 이하이면 1로 설정
         int offset = (currentPage - 1) * pageSize;
@@ -52,7 +54,7 @@ public class CarHistoryService {
         // 1) 센터 ID 목록 생성
         List<Long> centerIds = new ArrayList<>();
 
-        if (historyOrderRequestDTO.getCenterId() == null) {
+        if (historyMainRequestDTO.getCenterId() == null) {
             if (jwtUtil.validateToken(accessToken)) {
                 List<String> managedRegions = jwtUtil.getManagedRegions(accessToken);
                 centerIds = managedRegions.stream().map(Long::parseLong).collect(Collectors.toList());
@@ -60,30 +62,40 @@ public class CarHistoryService {
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "로그인 정보가 만료되었습니다.");
             }
         } else {
-            centerIds.add(historyOrderRequestDTO.getCenterId());
+            centerIds.add(historyMainRequestDTO.getCenterId());
         }
 
         // 2) 페이징을 포함한 QueryDSL 조회
-        Page<CarHistory> carHistories = findByDynamicConditions(historyOrderRequestDTO, centerIds, offset,
+        Page<CarHistory> carHistories = findByDynamicConditions(historyMainRequestDTO, centerIds, offset,
                 pageSize, sortField, sortDirection);
 
 
         // 3) 결과를 DTO로 변환
-        List<CarHistory> data = carHistories.getContent();
+        List<CarHistory> carHistoryList = carHistories.getContent();
+        List<HistoryReadCarResponseDTO> items = carHistoryList.stream()
+                .map(f -> new HistoryReadCarResponseDTO(
+                        f.getCarHistoryId(),
+                        f.getCarNum(),
+                        f.getRecordTime(),
+                        f.getReleaseTime(),
+                        f.getCharge().getCenter().getCenterNum() + "-" + f.getCharge().getChargeNum(),  // 센터이름(번호)-충전소이름(번호)
+                        f.getChargeStartTime(),
+                        f.getChargeEndTime()
+                ))
+                .toList();
+
         int total = (int) carHistories.getTotalElements();
         int totalPages = carHistories.getTotalPages();
 
-        HistoryOrderResponseDTO<CarHistory> responseDTO = new HistoryOrderResponseDTO<>(data, total, currentPage, totalPages);
+        return new HistoryMainResponseDTO<>(items, total, currentPage, totalPages);
 
-        // 4) 최종 응답
-        return ResponseEntity.ok(responseDTO);
     }
 
 
     /**
      * QueryDSL을 이용한 동적 조회
      */
-    private Page<CarHistory> findByDynamicConditions(HistoryOrderRequestDTO requestDTO, List<Long> centerIds,
+    private Page<CarHistory> findByDynamicConditions(HistoryMainRequestDTO requestDTO, List<Long> centerIds,
                                                      int offset, int pageSize, String sortField, String sortDirection) {
         QCarHistory carHistory = QCarHistory.carHistory;
         BooleanBuilder builder = new BooleanBuilder();

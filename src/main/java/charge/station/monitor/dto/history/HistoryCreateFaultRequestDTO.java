@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 @AllArgsConstructor
 public class HistoryCreateFaultRequestDTO {
-    private Charge charge;
+    //Charge->chargeId로 변경
+    private Long chargeId;
     private String faultReason;
 }

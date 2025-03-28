@@ -7,18 +7,14 @@ import charge.station.monitor.domain.User;
 import charge.station.monitor.dto.error.CustomException;
 import charge.station.monitor.dto.user.EMailRequestDTO;
 import charge.station.monitor.dto.user.JwtUserInfo;
-import charge.station.monitor.dto.user.UserJoinRequestDTO;
-import charge.station.monitor.dto.user.UserLoginRequestDTO;
+import charge.station.monitor.dto.user.JoinRequestDTO;
+import charge.station.monitor.dto.user.LoginRequestDTO;
 import charge.station.monitor.repository.UserRepository;
-import jakarta.persistence.EntityNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.http.HttpStatus;
-import org.springframework.security.authentication.BadCredentialsException;
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,14 +37,14 @@ public class UserService {
     // ✅ 이메일 인증번호 요청 (signup / find 구분)
     public void requestAuthCode(EMailRequestDTO dto) {
         if (dto.getType().equals("signup") && userRepository.existsByEmail(dto.getEmail())) {
-            throw new CustomException("이미 가입된 이메일입니다.", HttpStatus.BAD_REQUEST);
+            throw new CustomException("이미 가입된 이메일입니다.", HttpStatus.BAD_REQUEST, 400);
         }else{
             if (!userRepository.existsByLoginId(dto.getLoginId())) {
-                throw new CustomException("존재하지 않는 ID입니다.", HttpStatus.BAD_REQUEST);
+                throw new CustomException("존재하지 않는 ID입니다.", HttpStatus.BAD_REQUEST, 400);
             }
             Optional<String> userEmail = userRepository.findEmailByLoginId(dto.getLoginId());
             if (userEmail.isEmpty() || !userEmail.get().equals(dto.getEmail())) {
-                throw new CustomException("ID에 해당하는 이메일과 일치하지 않습니다.", HttpStatus.BAD_REQUEST);
+                throw new CustomException("ID에 해당하는 이메일과 일치하지 않습니다.", HttpStatus.BAD_REQUEST, 400);
             }
         }
         EMailService.sendAuthCode(dto.getEmail(), dto.getType()); // 인증번호 전송
@@ -61,10 +57,10 @@ public class UserService {
         String storedCode = (String) redisTemplate.opsForValue().get(redisKey); // Redis에서 값 가져오기
 
         if (storedCode == null) {
-            throw new CustomException("인증번호가 만료되었거나 요청되지 않았습니다.", HttpStatus.BAD_REQUEST);
+            throw new CustomException("인증번호가 만료되었거나 요청되지 않았습니다.", HttpStatus.BAD_REQUEST, 400);
         }
         if (!storedCode.equals(inputCode)) {
-            throw new CustomException("인증번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED);
+            throw new CustomException("인증번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED, 401);
         }
 
         redisTemplate.delete(redisKey); // 인증 성공 후 Redis에서 삭제
@@ -77,7 +73,7 @@ public class UserService {
     @Transactional
     public void updatePassword(String loginId, String password) {
         User user = userRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new CustomException("유효하지 않은 사용자 정보입니다: " + loginId, HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("유효하지 않은 사용자 정보입니다: " + loginId, HttpStatus.NOT_FOUND, 404));
 
         user.encodePassword(passwordEncoder.encode(password));
     }
@@ -90,13 +86,13 @@ public class UserService {
         if (jwtUtil.validateToken(accessToken)) {
             Long userId = jwtUtil.getUserId(accessToken);
             User user = userRepository.findByUserId(userId)
-                    .orElseThrow(() -> new CustomException("유효하지 않은 사용자 정보입니다: " + userId, HttpStatus.NOT_FOUND));
+                    .orElseThrow(() -> new CustomException("유효하지 않은 사용자 정보입니다: " + userId, HttpStatus.NOT_FOUND, 404));
             if(!passwordEncoder.matches(password,user.getPassword())){
-                throw new CustomException("현재 비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED);
+                throw new CustomException("현재 비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED, 404);
             }
             user.encodePassword(passwordEncoder.encode(newPassword));
         } else {
-            throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED);
+            throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
         }
     }
 
@@ -106,8 +102,8 @@ public class UserService {
      * 보강 수정 해야됨.
      */
     @Transactional
-    public Long join(UserJoinRequestDTO userJoinRequestDTO){
-        User user = userJoinRequestDTO.toEntity();
+    public Long join(JoinRequestDTO joinRequestDTO){
+        User user = joinRequestDTO.toEntity();
         validateDuplicateUser(user);
         user.encodePassword(passwordEncoder.encode(user.getPassword()));
         userRepository.save(user);
@@ -127,15 +123,15 @@ public class UserService {
     /**
      * 로그인 서비스 동작
      */
-    public String login(UserLoginRequestDTO userLoginRequestDTO){
-        String loginId = userLoginRequestDTO.getLoginId();
-        String password = userLoginRequestDTO.getPassword();
+    public String login(LoginRequestDTO loginRequestDTO){
+        String loginId = loginRequestDTO.getLoginId();
+        String password = loginRequestDTO.getPassword();
 
         User user = userRepository.findByLoginId(loginId)
-                .orElseThrow(() -> new CustomException("아이디가 존재하지 않습니다.", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("아이디가 존재하지 않습니다.", HttpStatus.NOT_FOUND, 404));
 
         if(!passwordEncoder.matches(password, user.getPassword())){
-            throw new CustomException("비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED);
+            throw new CustomException("비밀번호가 일치하지 않습니다.", HttpStatus.UNAUTHORIZED, 401);
         }
 
         JwtUserInfo info = new JwtUserInfo(user.getUserId()
@@ -177,7 +173,6 @@ public class UserService {
 
         // ✅ Redis에서 Refresh Token 존재 여부 확인
         String storedRefreshToken = (String) redisTemplate.opsForHash().get(userId.toString(), "refresh_token");
-        System.out.println(storedRefreshToken);
 
         if (storedRefreshToken == null) {
             request.setAttribute("errorMessage", "로그인 세션이 만료되었습니다. 다시 로그인해 주세요.");

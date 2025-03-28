@@ -259,7 +259,7 @@ public class RawDataService {
 
 
         Charge charge = chargeRepository.findById(rawDataPowerRequestDTO.getChargeId())
-                .orElseThrow(() -> new CustomException("유효하지 않은 충전소 정보입니다 : " + rawDataPowerRequestDTO.getChargeId(), HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new CustomException("유효하지 않은 충전소 정보입니다 : " + rawDataPowerRequestDTO.getChargeId(), HttpStatus.NOT_FOUND, 404));
         
         // Redis 캐시 데이터 확인
         Map<Object, Object> cachedSttus = redisTemplate.opsForHash().entries(chargeId);

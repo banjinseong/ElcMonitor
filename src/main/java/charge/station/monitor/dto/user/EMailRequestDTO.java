@@ -19,6 +19,4 @@ public class EMailRequestDTO {
 
     @NotBlank(message = "인증 유형(type)은 필수입니다.")
     private String type;
-
-    private String password;
 }

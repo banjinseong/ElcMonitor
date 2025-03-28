@@ -22,10 +22,10 @@ public class CarHistory {
     private String carNum;
 
     @Column(name = "in_time", nullable = false)
-    private LocalDateTime inTime;
+    private LocalDateTime recordTime;
 
     @Column(name = "out_time", nullable = true)
-    private LocalDateTime outTime;
+    private LocalDateTime releaseTime;
 
     @ManyToOne
     @JoinColumn(name = "charge_id", nullable = false)
@@ -39,11 +39,11 @@ public class CarHistory {
 
 
     @Builder
-    private CarHistory(String carNum, LocalDateTime inTime, LocalDateTime outTime,
+    private CarHistory(String carNum, LocalDateTime recordTime, LocalDateTime releaseTime,
                        Charge charge, LocalDateTime chargeStartTime, LocalDateTime chargeEndTime) {
         this.carNum = carNum;
-        this.inTime = inTime;
-        this.outTime = outTime;
+        this.recordTime = recordTime;
+        this.releaseTime = releaseTime;
         this.charge = charge;
         this.chargeStartTime = chargeStartTime;
         this.chargeEndTime = chargeEndTime;
@@ -53,14 +53,14 @@ public class CarHistory {
     public static CarHistory createEntry(String carNum, Charge charge) {
         return CarHistory.builder()
                 .carNum(carNum)
-                .inTime(LocalDateTime.now())
+                .recordTime(LocalDateTime.now())
                 .charge(charge)
                 .build();
     }
 
     // 출차 (out_time 추가)
     public void exit(LocalDateTime outTime) {
-        this.outTime = outTime;
+        this.releaseTime = outTime;
     }
 
     // 충전 시작

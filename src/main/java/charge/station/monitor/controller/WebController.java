@@ -1,8 +1,9 @@
 package charge.station.monitor.controller;
 
-import charge.station.monitor.dto.history.HistoryCreateFaultRequestDTO;
-import charge.station.monitor.dto.history.HistoryOrderRequestDTO;
-import charge.station.monitor.dto.history.HistoryReasonDTO;
+import charge.station.monitor.domain.history.FaultHistory;
+import charge.station.monitor.dto.ApiResponse;
+import charge.station.monitor.dto.error.CustomException;
+import charge.station.monitor.dto.history.*;
 import charge.station.monitor.service.history.CarHistoryService;
 import charge.station.monitor.service.history.FaultHistoryService;
 import charge.station.monitor.service.history.FireAlertHistoryService;
@@ -11,8 +12,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.BindingResult;
-import org.springframework.validation.ObjectError;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -31,42 +30,23 @@ public class WebController {
      * 고장 등록
      */
     @PostMapping("/create/fault")
-    public ResponseEntity<?> createFaultHistory(@RequestBody @Valid HistoryCreateFaultRequestDTO historyCreateFaultRequestDTO,
-                                                BindingResult bindingResult) {
-        if(bindingResult.hasErrors()){
-            StringBuilder errorMessage = new StringBuilder();
-            for (ObjectError error : bindingResult.getAllErrors()) {
-                errorMessage.append(error.getDefaultMessage()).append("; ");
-            }
-            return ResponseEntity.badRequest().body(errorMessage.toString());
-        }
-        try {
-            faultHistoryService.enroll(historyCreateFaultRequestDTO);
-            String message = "고장처리 하셨습니다.";
-            return ResponseEntity.ok(message);
-        }catch (IllegalAccessError error){
-            String errorMessage = "등록에 실패하였습니다: " + error.getMessage(); // 오류 메시지 포맷
-            //500으로 메시지 고정, 위에서 유효성검사 하기때문에
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorMessage);
-        }
+    public ResponseEntity<?> createFaultHistory(@RequestBody @Valid HistoryCreateFaultRequestDTO historyCreateFaultRequestDTO){
+
+        faultHistoryService.enroll(historyCreateFaultRequestDTO);
+        return ResponseEntity.ok(new ApiResponse<>(200, "고장처리 하셨습니다.", null));
     }
 
 
     /**
      * 고장 업데이트(수정, 고장해결)
      */
-    @PutMapping("/update/fault/{chargeId}")
-    public ResponseEntity<?> updateFaultHistory(@PathVariable Long chargeId){
+    @PostMapping("/update/fault")
+    public ResponseEntity<?> updateFaultHistory(@RequestBody @Valid HistoryUpdateFaultRequestDTO historyUpdateFaultRequestDTO){
 
-        try {
-            faultHistoryService.update(chargeId);
-            String message = "정상처리 하셨습니다.";
-            return ResponseEntity.ok(message);
-        }catch (IllegalAccessError error){
-            String errorMessage = "수정에 실패하였습니다: " + error.getMessage(); // 오류 메시지 포맷
-            //500으로 메시지 고정, 위에서 유효성검사 하기때문에
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(errorMessage);
-        }
+
+        faultHistoryService.update(historyUpdateFaultRequestDTO);
+        return ResponseEntity.ok(new ApiResponse<>(200, "정상처리 하셨습니다.", null));
+
 
     }
 
@@ -78,40 +58,43 @@ public class WebController {
     /**
      * 고장 이력 조회
      */
-    @PostMapping("/history/fault")
+    @GetMapping("/history/fault")
     public ResponseEntity<?> selectFaultHistory(@RequestHeader("Authorization") String authorizationHeader,
                                                 @RequestParam(value = "page", defaultValue = "1") int page,
                                                 @RequestParam(defaultValue = "recordTime", name = "sortField") String sortField,
                                                 @RequestParam(defaultValue = "asc", name = "sortDirection") String sortDirection,
-                                                @Valid @RequestBody HistoryOrderRequestDTO historyOrderRequestDTO) {
+                                                @Valid @RequestBody HistoryMainRequestDTO historyMainRequestDTO) {
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
 
         String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
 
-        return faultHistoryService.faultSelect(accessToken, historyOrderRequestDTO, page, sortField, sortDirection);
+        HistoryMainResponseDTO<HistoryReadFaultResponseDTO> responseEntity = faultHistoryService.faultSelect(accessToken, historyMainRequestDTO, page, sortField, sortDirection);
+        return ResponseEntity.ok(new ApiResponse<>(200, "고장 이력 조회", responseEntity));
     }
 
 
     /**
      * 화재위험 이력 조회
      */
-    @PostMapping("/history/fire")
+    @GetMapping("/history/fire")
     public ResponseEntity<?> selectFireAlert(@RequestHeader("Authorization") String authorizationHeader,
                                                 @RequestParam(value = "page", defaultValue = "1") int page,
                                                 @RequestParam(defaultValue = "recordTime", name = "sortField") String sortField,
                                                 @RequestParam(defaultValue = "asc", name = "sortDirection") String sortDirection,
-                                                @Valid @RequestBody HistoryOrderRequestDTO historyOrderRequestDTO) {
+                                                @Valid @RequestBody HistoryMainRequestDTO historyMainRequestDTO) {
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
 
         String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
 
-        return fireAlertHistoryService.fireSelect(accessToken, historyOrderRequestDTO, page, sortField, sortDirection);
+        HistoryMainResponseDTO<HistoryReadFireResponseDTO> responseEntity = fireAlertHistoryService.fireSelect(accessToken, historyMainRequestDTO, page, sortField, sortDirection);
+        return ResponseEntity.ok(new ApiResponse<>(200, "화재 이력 조회", responseEntity));
+
     }
 
 
@@ -123,15 +106,16 @@ public class WebController {
                                                 @RequestParam(value = "page", defaultValue = "1") int page,
                                                 @RequestParam(defaultValue = "recordTime", name = "sortField") String sortField,
                                                 @RequestParam(defaultValue = "asc", name = "sortDirection") String sortDirection,
-                                                @Valid @RequestBody HistoryOrderRequestDTO historyOrderRequestDTO) {
+                                                @Valid @RequestBody HistoryMainRequestDTO historyMainRequestDTO) {
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
 
         String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
 
-        return illegalParkingHistoryService.illegalParkingSelect(accessToken, historyOrderRequestDTO, page, sortField, sortDirection);
+        HistoryMainResponseDTO<HistoryReadIllegalResponseDTO> responseEntity = illegalParkingHistoryService.illegalParkingSelect(accessToken, historyMainRequestDTO, page, sortField, sortDirection);
+        return ResponseEntity.ok(new ApiResponse<>(200, "불법 주정차 이력 조회", responseEntity));
     }
 
 
@@ -141,17 +125,18 @@ public class WebController {
     @PostMapping("/history/car")
     public ResponseEntity<?> selectCarHistory(@RequestHeader("Authorization") String authorizationHeader,
                                                   @RequestParam(value = "page", defaultValue = "1") int page,
-                                                  @RequestParam(defaultValue = "inTime", name = "sortField") String sortField,
+                                                  @RequestParam(defaultValue = "recordTime", name = "sortField") String sortField,
                                                   @RequestParam(defaultValue = "asc", name = "sortDirection") String sortDirection,
-                                                  @Valid @RequestBody HistoryOrderRequestDTO historyOrderRequestDTO) {
+                                                  @Valid @RequestBody HistoryMainRequestDTO historyMainRequestDTO) {
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
 
         String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
 
-        return carHistoryService.carSelect(accessToken, historyOrderRequestDTO, page, sortField, sortDirection);
+        HistoryMainResponseDTO<HistoryReadCarResponseDTO> responseEntity = carHistoryService.carSelect(accessToken, historyMainRequestDTO, page, sortField, sortDirection);
+        return ResponseEntity.ok(new ApiResponse<>(200, "자동차 주차 이력 조회", responseEntity));
 
     }
 
@@ -159,11 +144,11 @@ public class WebController {
     /**
      * 화재 사후처리 입력
      */
-    @PostMapping("/history/fire/reason")
-    public ResponseEntity<?> fireReason(@RequestBody HistoryReasonDTO dto) {
+    @PostMapping("/update/fire")
+    public ResponseEntity<?> fireReason(@RequestBody HistoryCreateFireReasonDTO dto) {
         fireAlertHistoryService.fireReasonChk(dto);
 
-        return ResponseEntity.ok(202);
+        return ResponseEntity.ok(new ApiResponse<>(200, "화재 사루처리 완료", null));
     }
 
 

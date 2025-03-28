@@ -56,7 +56,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 long currentTime = System.currentTimeMillis();
 
                 // ✅ 일정시간 이상 미활동 시 자동 로그아웃 처리
-                if ((currentTime - lastActivityTime) > 1800000) {
+                if ((currentTime - lastActivityTime) > 360000) {
                     redisTemplate.delete(userKey); // 🔹 Redis에서 로그아웃 처리
                     request.setAttribute("errorMessage", "장시간 활동이 없어 자동 로그아웃되었습니다.");
                     response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
@@ -78,6 +78,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 //토큰에서 고유id, 이름, 관리레벨, 관리구역 꺼내오기 가능.
             }
+
         }
 
         filterChain.doFilter(request, response);

@@ -1,5 +1,7 @@
 package charge.station.monitor.controller;
 
+import charge.station.monitor.dto.ApiResponse;
+import charge.station.monitor.dto.error.CustomException;
 import charge.station.monitor.dto.user.*;
 import charge.station.monitor.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,7 +30,7 @@ public class UserController {
      * 회원가입 유저의 유저 번호를 반환함.
      */
     @PostMapping("join")
-    public ResponseEntity<?> joinUser(@Valid @RequestBody UserJoinRequestDTO userJoinRequestDTO, BindingResult bindingResult){
+    public ResponseEntity<?> joinUser(@Valid @RequestBody JoinRequestDTO joinRequestDTO, BindingResult bindingResult){
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getAllErrors().stream()
                     .map(DefaultMessageSourceResolvable::getDefaultMessage)
@@ -39,15 +41,22 @@ public class UserController {
                     "errors", errors
             ));
         }
-        Long id = userService.join(userJoinRequestDTO);
-        return ResponseEntity.status(HttpStatus.OK).body(id);
+        //db 아이디 번호 반환
+        Long id = userService.join(joinRequestDTO);
+        JoinResponseDTO joinResponseDTO = new JoinResponseDTO();
+        joinResponseDTO.setId(id);
+        ApiResponse<JoinResponseDTO> apiResponse = new ApiResponse<>();
+        apiResponse.setCode(200);
+        apiResponse.setMessage("회원가입 성공");
+        apiResponse.setData(joinResponseDTO);
+        return ResponseEntity.status(HttpStatus.OK).body(apiResponse);
     }
 
     /**
      * 현재 토큰을 반환중인데, 나중에 수정 필요할수도
      */
     @PostMapping("login")
-    public ResponseEntity<?> loginUser(@Valid @RequestBody UserLoginRequestDTO userLoginRequestDTO, BindingResult bindingResult){
+    public ResponseEntity<?> loginUser(@Valid @RequestBody LoginRequestDTO loginRequestDTO, BindingResult bindingResult){
         if (bindingResult.hasErrors()) {
             List<String> errors = bindingResult.getAllErrors().stream()
                     .map(DefaultMessageSourceResolvable::getDefaultMessage)
@@ -58,8 +67,10 @@ public class UserController {
                     "errors", errors
             ));
         }
-        String token = userService.login(userLoginRequestDTO);
-        return ResponseEntity.status(HttpStatus.OK).body(token);
+        String token = userService.login(loginRequestDTO);
+        UserTokenResponseDTO tokenResponseDTO = new UserTokenResponseDTO();
+        tokenResponseDTO.setToken(token);
+        return ResponseEntity.status(HttpStatus.OK).body(tokenResponseDTO);
     }
 
 
@@ -69,12 +80,15 @@ public class UserController {
     @PostMapping("refresh")
     public ResponseEntity<?> refreshAccessToken(@RequestHeader("Authorization") String authorizationHeader, HttpServletRequest request, HttpServletResponse response)throws IOException {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
 
         String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
         String newAccessToken = userService.refreshAccessToken(accessToken, request, response);
-        return ResponseEntity.status(HttpStatus.OK).body(newAccessToken);
+
+        UserTokenResponseDTO tokenResponseDTO = new UserTokenResponseDTO();
+        tokenResponseDTO.setToken(newAccessToken);
+        return ResponseEntity.status(HttpStatus.OK).body(tokenResponseDTO);
     }
 
     /**
@@ -83,58 +97,58 @@ public class UserController {
     @PostMapping("logout")
     public ResponseEntity<?> logout(@RequestHeader("Authorization") String authorizationHeader, HttpServletRequest request, HttpServletResponse response)throws IOException {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
 
         // ✅ "Bearer " 제거 후 순수한 Access Token 추출
         String accessToken = authorizationHeader.substring(7).trim();
 
         userService.logout(accessToken, request, response);
-        return ResponseEntity.ok("로그아웃되었습니다.");
+        return ResponseEntity.ok(new ApiResponse<>(200, "로그아웃 했습니다.", null));
     }
 
 
 
     // ✅ 인증번호 요청 API (signup / find)
-    @PostMapping("/sendCode")
-    public ResponseEntity<String> sendAuthCode(@RequestBody EMailRequestDTO request) {
+    @PostMapping("sendCode")
+    public ResponseEntity<?> sendAuthCode(@RequestBody EMailRequestDTO request) {
         if (!request.getType().equals("signup") && !request.getType().equals("find")) {
-            throw new IllegalArgumentException("잘못된 요청 유형입니다.");
+            throw new CustomException("잘못된 요청 유형입니다.", HttpStatus.BAD_REQUEST, 400);
         }
         userService.requestAuthCode(request);
-        return ResponseEntity.ok("인증번호가 이메일로 전송되었습니다.");
+        return ResponseEntity.ok(new ApiResponse<>(200, "인증번호가 이메일로 전송되었습니다.", null));
     }
 
     // ✅ 인증번호 검증 API (signup / find)
-    @PostMapping("/verifyCode")
-    public ResponseEntity<String> verifyAuthCode(@RequestBody VerifyRequestDTO request) {
+    @PostMapping("verifyCode")
+    public ResponseEntity<?> verifyAuthCode(@RequestBody VerifyRequestDTO request) {
         if (!request.getType().equals("signup") && !request.getType().equals("find")) {
-            throw new IllegalArgumentException("잘못된 요청 유형입니다.");
+            throw new CustomException("잘못된 요청 유형입니다.", HttpStatus.BAD_REQUEST, 400);
         }
         userService.verifyAuthCode(request.getEmail(), request.getType(), request.getCode());
-        return ResponseEntity.ok("인증 성공");
+        return ResponseEntity.ok(new ApiResponse<>(200, "인증 성공.", null));
     }
 
 
     /**
      * 비밀번호 찾기에서 비밀번호 변경 코드.
      */
-    @PutMapping("findPassword")
-    public ResponseEntity<String> findPassword(@RequestBody EMailRequestDTO request){
-        userService.updatePassword(request.getLoginId(), request.getPassword());
-        return ResponseEntity.ok("비밀번호 변경 성공");
+    @PostMapping("findPassword")
+    public ResponseEntity<?> findPassword(@RequestBody UpdatePasswordDTO dto){
+        userService.updatePassword(dto.getLoginId(), dto.getPassword());
+        return ResponseEntity.ok(new ApiResponse<>(200, "비밀번호 변경 성공.", null));
     }
 
 
     /**
      * 비밀번호 변경시 요청 코드.
      */
-    @PutMapping("resetPssword")
-    public ResponseEntity<String> resetPassword(@RequestHeader("Authorization") String authorizationHeader,
+    @PostMapping("resetPssword")
+    public ResponseEntity<?> resetPassword(@RequestHeader("Authorization") String authorizationHeader,
                                                 @RequestBody UpdatePasswordDTO dto){
 
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body("잘못된 토큰 형식입니다.");
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
 
         // ✅ "Bearer " 제거 후 순수한 Access Token 추출
@@ -142,7 +156,7 @@ public class UserController {
 
         userService.updatePassword(accessToken, dto.getPassword(), dto.getNewPassword());
 
-        return ResponseEntity.ok("비밀번호 변경 성공");
+        return ResponseEntity.ok(new ApiResponse<>(200, "비밀번호 변경 성공.", null));
     }
 
 }

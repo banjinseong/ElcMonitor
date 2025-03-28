@@ -1,5 +1,6 @@
 package charge.station.monitor.controller;
 
+import charge.station.monitor.dto.ApiResponse;
 import charge.station.monitor.dto.cache.ChargeCacheDTO;
 import charge.station.monitor.dto.rawdata.RawDataImgRequestDTO;
 import charge.station.monitor.dto.rawdata.RawDataPowerRequestDTO;
@@ -38,7 +39,7 @@ public class RawDataController {
         //현재 이미지의 정보를 가지고 이전 캐시정보와 비교.(비교 후 현황이든 이력 db수정)
         rawDataService.plateForImg(rawDataImgRequestDTO);
 
-        return ResponseEntity.ok().build();
+        return ResponseEntity.ok(new ApiResponse<>(200, "이미지 처리 완료.", null));
 
     }
 
@@ -48,8 +49,11 @@ public class RawDataController {
      * 전력량 컨트롤러
      */
     @PostMapping("powerConnection")
-    public void rawDataSavePower(@RequestBody RawDataPowerRequestDTO rawDataPowerRequestDTO){
+    public ResponseEntity<?> rawDataSavePower(@RequestBody RawDataPowerRequestDTO rawDataPowerRequestDTO){
         rawDataService.savePower(rawDataPowerRequestDTO);
+
+        return ResponseEntity.ok(new ApiResponse<>(200, "전력량 처리 완료.", null));
+
     }
 
 }
