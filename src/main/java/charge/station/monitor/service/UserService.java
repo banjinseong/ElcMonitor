@@ -5,10 +5,7 @@ import charge.station.monitor.config.SecurePasswordEncoder;
 import charge.station.monitor.config.jwt.JwtUtil;
 import charge.station.monitor.domain.User;
 import charge.station.monitor.dto.error.CustomException;
-import charge.station.monitor.dto.user.EMailRequestDTO;
-import charge.station.monitor.dto.user.JwtUserInfo;
-import charge.station.monitor.dto.user.JoinRequestDTO;
-import charge.station.monitor.dto.user.LoginRequestDTO;
+import charge.station.monitor.dto.user.*;
 import charge.station.monitor.repository.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -196,9 +193,36 @@ public class UserService {
             Long userId = jwtUtil.getUserId(accessToken);
             redisTemplate.delete(userId.toString());  // ✅ Redis에서 Refresh Token 삭제
         } else {
-            request.setAttribute("errorMessage", "유효하지 않은 토큰입니다.");
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
         }
+    }
+
+
+    /**
+     * 마이페이지
+     */
+    public MyPageDTO myPage(String accessToken){
+
+        Long userId;
+
+        if (jwtUtil.validateToken(accessToken)) {
+            userId = jwtUtil.getUserId(accessToken);
+        } else {
+            throw new CustomException("토큰이 만료되었습니다.", HttpStatus.UNAUTHORIZED, 401);
+        }
+
+        User user = userRepository.findByUserId(userId).orElseThrow(
+                () -> new CustomException("아이디가 존재하지 않습니다.", HttpStatus.NOT_FOUND, 404));
+
+        MyPageDTO myPageDTO = new MyPageDTO();
+        myPageDTO.setUserId(user.getUserId());
+        myPageDTO.setUserName(user.getUserName());
+        myPageDTO.setCompany(user.getCompany());
+        myPageDTO.setCreateDate(user.getCreateDate());
+        myPageDTO.setUpdateDate(user.getUpdateDate());
+
+        return myPageDTO;
+
     }
 
 

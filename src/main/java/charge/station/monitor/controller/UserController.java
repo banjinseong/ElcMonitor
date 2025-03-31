@@ -70,7 +70,7 @@ public class UserController {
         String token = userService.login(loginRequestDTO);
         UserTokenResponseDTO tokenResponseDTO = new UserTokenResponseDTO();
         tokenResponseDTO.setToken(token);
-        return ResponseEntity.status(HttpStatus.OK).body(tokenResponseDTO);
+        return ResponseEntity.ok(new ApiResponse<>(200, "로그인하셨습니다..", tokenResponseDTO));
     }
 
 
@@ -88,7 +88,8 @@ public class UserController {
 
         UserTokenResponseDTO tokenResponseDTO = new UserTokenResponseDTO();
         tokenResponseDTO.setToken(newAccessToken);
-        return ResponseEntity.status(HttpStatus.OK).body(tokenResponseDTO);
+        return ResponseEntity.ok(new ApiResponse<>(200, "토큰 재발급 하였습니다.", tokenResponseDTO));
+
     }
 
     /**
@@ -158,5 +159,27 @@ public class UserController {
 
         return ResponseEntity.ok(new ApiResponse<>(200, "비밀번호 변경 성공.", null));
     }
+
+
+    /**
+     * 마이페이지 요청.
+     */
+    @GetMapping("myPage")
+    public ResponseEntity<?> myPage(@RequestHeader("Authorization") String authorizationHeader){
+
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
+        }
+
+        // ✅ "Bearer " 제거 후 순수한 Access Token 추출
+        String accessToken = authorizationHeader.substring(7).trim();
+
+        MyPageDTO myPageDTO = userService.myPage(accessToken);
+
+        return ResponseEntity.ok(new ApiResponse<>(200, "비밀번호 변경 성공.", myPageDTO));
+
+    }
+
+
 
 }
