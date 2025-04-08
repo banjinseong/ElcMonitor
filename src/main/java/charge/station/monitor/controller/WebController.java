@@ -1,9 +1,11 @@
 package charge.station.monitor.controller;
 
-import charge.station.monitor.domain.history.FaultHistory;
 import charge.station.monitor.dto.ApiResponse;
+import charge.station.monitor.dto.ChargeMonitorDTO;
+import charge.station.monitor.dto.ChargeRuntimeDetailDTO;
 import charge.station.monitor.dto.error.CustomException;
 import charge.station.monitor.dto.history.*;
+import charge.station.monitor.service.MonitorService;
 import charge.station.monitor.service.history.CarHistoryService;
 import charge.station.monitor.service.history.FaultHistoryService;
 import charge.station.monitor.service.history.FireAlertHistoryService;
@@ -13,6 +15,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -24,6 +28,49 @@ public class WebController {
     private final IllegalParkingHistoryService illegalParkingHistoryService;
     private final FireAlertHistoryService fireAlertHistoryService;
     private final CarHistoryService carHistoryService;
+    private final MonitorService monitorService;
+
+
+    /**
+     * 메인 페이지
+     */
+    public ResponseEntity<?> mainMonitor(@RequestHeader("Authorization") String authorizationHeader){
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
+        }
+
+        String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
+
+        //메인정보 가져오기
+        List<ChargeMonitorDTO> chargeMonitorDTOS = monitorService.mainMonitor(accessToken);
+
+        return ResponseEntity.ok(new ApiResponse<>(200, "메인페이지.", chargeMonitorDTOS));
+
+    }
+
+
+    /**
+     * 세부사항 조회
+     */
+    @GetMapping("{chargeId}")
+    public ResponseEntity<?> mainMonitorDetail(@RequestHeader("Authorization") String authorizationHeader,
+                                               @RequestParam Long chargeId){
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
+        }
+
+        String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
+
+        ChargeRuntimeDetailDTO chargeRuntimeDetail = monitorService.getChargeRuntimeDetail(chargeId);
+
+
+        return ResponseEntity.ok(new ApiResponse<>(200, "상세페이지.", chargeRuntimeDetail));
+
+    }
+
+
+
+
 
 
     /**
@@ -150,6 +197,8 @@ public class WebController {
 
         return ResponseEntity.ok(new ApiResponse<>(200, "화재 사루처리 완료", null));
     }
+
+
 
 
 
