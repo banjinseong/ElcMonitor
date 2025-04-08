@@ -119,6 +119,6 @@ public class RawDataTransaction {
          * 해당 영속성 관리 테스트는 필수로 확인 후 삭제할것.
          */
         // 변경 감지 확인용 로그 추가
-        System.out.println("출차 시간 업데이트됨: " + carHistory.getOutTime());
+        System.out.println("출차 시간 업데이트됨: " + carHistory.getReleaseTime());
     }
 }

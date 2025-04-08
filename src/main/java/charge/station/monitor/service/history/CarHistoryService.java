@@ -112,11 +112,11 @@ public class CarHistoryService {
 
         // 3) 기간 설정
         if (requestDTO.getStartTime() != null && requestDTO.getEndTime() != null) {
-            builder.and(carHistory.inTime.between(requestDTO.getStartTime(), requestDTO.getEndTime()));
+            builder.and(carHistory.recordTime.between(requestDTO.getStartTime(), requestDTO.getEndTime()));
         } else if (requestDTO.getStartTime() != null) {
-            builder.and(carHistory.inTime.goe(requestDTO.getStartTime()));
+            builder.and(carHistory.recordTime.goe(requestDTO.getStartTime()));
         } else if (requestDTO.getEndTime() != null) {
-            builder.and(carHistory.inTime.loe(requestDTO.getEndTime()));
+            builder.and(carHistory.recordTime.loe(requestDTO.getEndTime()));
         }
 
         /**
