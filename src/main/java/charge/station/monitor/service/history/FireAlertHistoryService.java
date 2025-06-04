@@ -18,10 +18,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -167,7 +165,7 @@ public class FireAlertHistoryService {
      * 사후처리 작성 서비스
      */
     @Transactional
-    public void fireReasonChk(HistoryCreateFireReasonDTO dto){
+    public void fireUpdate(HistoryUpdateFireDTO dto){
         for(Long id : dto.getIds()){
             FireAlertHistory fireAlertHistory = fireAlertHistoryRepository.findById(id)
                     .orElseThrow(() -> new CustomException("이력선택중 오류가 발생했습니다.", HttpStatus.BAD_REQUEST, 400));

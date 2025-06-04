@@ -7,7 +7,7 @@ import java.util.List;
 
 @Data
 @AllArgsConstructor
-public class HistoryCreateFireReasonDTO {
+public class HistoryUpdateFireDTO {
     private List<Long> ids;
 
 
