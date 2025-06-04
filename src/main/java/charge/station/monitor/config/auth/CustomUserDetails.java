@@ -10,12 +10,14 @@ import java.util.List;
 public class CustomUserDetails extends org.springframework.security.core.userdetails.User {
 
     // ✅ userId 가져오기
-    private Long userId;  // ✅ userId 추가
+    private final Long userId;  // ✅ userId 추가
     private final List<String> managedRegions;
 
     public CustomUserDetails(Long userId, String username, String password, Collection<? extends GrantedAuthority> authorities,
                              List<String> managedRegions) {
+
         super(username, password, authorities);
+        this.userId = userId;
         this.managedRegions = managedRegions;
     }
 
