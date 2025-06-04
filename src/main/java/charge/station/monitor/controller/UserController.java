@@ -176,8 +176,27 @@ public class UserController {
 
         MyPageDTO myPageDTO = userService.myPage(accessToken);
 
-        return ResponseEntity.ok(new ApiResponse<>(200, "비밀번호 변경 성공.", myPageDTO));
+        return ResponseEntity.ok(new ApiResponse<>(200, "마이페이지 진입", myPageDTO));
 
+    }
+
+
+    /**
+     * 마이페이지 수정.
+     */
+    @PostMapping("myPage/update")
+    public ResponseEntity<?> myPageUpdate(@RequestHeader("Authorization") String authorizationHeader, MyPageDTO myPageDTO){
+
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
+        }
+
+        // ✅ "Bearer " 제거 후 순수한 Access Token 추출
+        String accessToken = authorizationHeader.substring(7).trim();
+
+        userService.myPageUpdate(accessToken, myPageDTO);
+
+        return ResponseEntity.ok(new ApiResponse<>(200, "마이페이지 내정보 수정", null));
     }
 
 

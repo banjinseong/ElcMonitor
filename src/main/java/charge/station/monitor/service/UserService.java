@@ -226,4 +226,20 @@ public class UserService {
     }
 
 
+    /**
+     * 마이페이지 수정
+     * 단순 정보 전체 수정.
+     * (이름, 회사, 수정일)받아오는 정보는 이름, 회사 뿐.
+     */
+    @Transactional
+    public void myPageUpdate(String accessToken, MyPageDTO myPageDTO){
+
+        User user = userRepository.findByUserId(myPageDTO.getUserId()).orElseThrow(
+                () -> new CustomException("아이디가 존재하지 않습니다.", HttpStatus.NOT_FOUND, 404));
+
+        user.pageUpdate(myPageDTO.getUserName(), myPageDTO.getCompany());
+
+    }
+
+
 }

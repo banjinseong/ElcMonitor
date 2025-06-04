@@ -63,4 +63,14 @@ public class User {
         this.createDate = LocalDate.now();
         this.userRole = UserRole.USER;
     }
+
+
+    /**
+     * 마이 페이지 업데이트(이름, 회사, 수정일)
+     */
+    public void pageUpdate(String userName, String company){
+        this.userName = userName;
+        this.company = company;
+        this.updateDate = LocalDate.now();
+    }
 }
