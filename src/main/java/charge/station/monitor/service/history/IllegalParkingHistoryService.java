@@ -3,10 +3,8 @@ package charge.station.monitor.service.history;
 import charge.station.monitor.config.jwt.JwtUtil;
 import charge.station.monitor.domain.history.IllegalParkingHistory;
 import charge.station.monitor.domain.history.QIllegalParkingHistory;
-import charge.station.monitor.dto.history.HistoryMainRequestDTO;
-import charge.station.monitor.dto.history.HistoryMainResponseDTO;
-import charge.station.monitor.dto.history.HistoryReadFireResponseDTO;
-import charge.station.monitor.dto.history.HistoryReadIllegalResponseDTO;
+import charge.station.monitor.dto.error.CustomException;
+import charge.station.monitor.dto.history.*;
 import charge.station.monitor.repository.history.IllegalParkingHistoryRepository;
 import com.querydsl.core.BooleanBuilder;
 import com.querydsl.core.types.Order;
@@ -161,6 +159,21 @@ public class IllegalParkingHistoryService {
             return new OrderSpecifier<>(Order.DESC, sortedExpression);
         } else {
             return new OrderSpecifier<>(Order.ASC, sortedExpression);
+        }
+    }
+
+
+    /**
+     * 사후처리 작성 서비스(과태료 납부 등?)
+     */
+    @Transactional
+    public void illegalUpdate(HistoryUpdateIllegalDTO dto){
+        for(Long id : dto.getIds()){
+            IllegalParkingHistory illegalParkingHistory = illegalParkingHistoryRepository.findById(id)
+                    .orElseThrow(() -> new CustomException("이력선택중 오류가 발생했습니다.", HttpStatus.BAD_REQUEST, 400));
+
+            //사후처리완료
+            illegalParkingHistory.writeProcSttus();
         }
     }
 }

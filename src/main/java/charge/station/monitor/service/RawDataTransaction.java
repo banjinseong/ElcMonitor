@@ -4,17 +4,20 @@ import charge.station.monitor.domain.Charge;
 import charge.station.monitor.domain.ChargeSttus;
 import charge.station.monitor.domain.RawDataImg;
 import charge.station.monitor.domain.history.CarHistory;
+import charge.station.monitor.domain.history.IllegalParkingHistory;
 import charge.station.monitor.dto.cache.ChargeCacheDTO;
 import charge.station.monitor.repository.history.CarHistoryRepository;
 import charge.station.monitor.repository.ChargeRepository;
 import charge.station.monitor.repository.ChargeSttusRepository;
 import charge.station.monitor.repository.RawDataImgRepository;
+import charge.station.monitor.repository.history.IllegalParkingHistoryRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 
 @Slf4j
@@ -27,6 +30,7 @@ public class RawDataTransaction {
     private final ChargeSttusRepository chargeSttusRepository;
     private final CarHistoryRepository carHistoryRepository;
     private final RawDataImgRepository rawDataImgRepository;
+    private final IllegalParkingHistoryRepository illegalParkingHistoryRepository;
 
 
     /**
@@ -112,8 +116,29 @@ public class RawDataTransaction {
             chargeSttus.stopCharging();
         }
 
+        /**
+         * 출차시 주차한 기록의 시간을 판별 후 불법 주정차 확인.
+         * 14시간 이상 주차하면 과태료
+         */
+        if(Duration.between(carHistory.getRecordTime(), carHistory.getReleaseTime()).toHours()>=14){
+            IllegalParkingHistory illegalParkingHistory = IllegalParkingHistory.builder()
+                    .carNum(chargeCacheDTO.getCarNum())
+                    .recordTime(LocalDateTime.now())
+                    .type("점유시간 초과")
+                    .procSttus(false)
+                    .charge(charge)
+                    .build();
+            illegalParkingHistoryRepository.save(illegalParkingHistory);
+
+        }
+
+
         chargeSttus.exit(); //현황에서 출차처리.
         carHistory.exit(LocalDateTime.now()); // 출차 시간 업데이트
+
+
+
+
 
         /**
          * 해당 영속성 관리 테스트는 필수로 확인 후 삭제할것.

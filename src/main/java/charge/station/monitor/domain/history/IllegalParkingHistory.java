@@ -42,4 +42,8 @@ public class IllegalParkingHistory {
         this.procSttus = procSttus;
         this.charge = charge;
     }
+
+    public void writeProcSttus() {
+        this.procSttus = true;
+    }
 }

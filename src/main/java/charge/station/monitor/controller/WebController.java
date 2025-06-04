@@ -192,10 +192,21 @@ public class WebController {
      * 화재 사후처리 입력
      */
     @PostMapping("/update/fire")
-    public ResponseEntity<?> fireReason(@RequestBody HistoryCreateFireReasonDTO dto) {
-        fireAlertHistoryService.fireReasonChk(dto);
+    public ResponseEntity<?> fireUpdate(@RequestBody HistoryUpdateFireDTO dto) {
+        fireAlertHistoryService.fireUpdate(dto);
 
         return ResponseEntity.ok(new ApiResponse<>(200, "화재 사루처리 완료", null));
+    }
+
+
+    /**
+     * 불법 사후처리 입력
+     */
+    @PostMapping("/update/illegal")
+    public ResponseEntity<?> illegalUpdate(@RequestBody HistoryUpdateIllegalDTO dto) {
+        illegalParkingHistoryService.illegalUpdate(dto);
+
+        return ResponseEntity.ok(new ApiResponse<>(200, "불법 사루처리 완료", null));
     }
 
 
