@@ -67,36 +67,33 @@ public class UserController {
                     "errors", errors
             ));
         }
-        String token = userService.login(loginRequestDTO);
-        UserTokenResponseDTO tokenResponseDTO = new UserTokenResponseDTO();
-        tokenResponseDTO.setToken(token);
+        UserTokenResponseDTO tokenResponseDTO = userService.login(loginRequestDTO);
         return ResponseEntity.ok(new ApiResponse<>(200, "로그인하셨습니다..", tokenResponseDTO));
     }
 
 
     /**
-     * Access Token 재발급 (Refresh Token 없이 Redis 검증)
+     * ~~취소~~Access Token 재발급 (Refresh Token 없이 Redis 검증)
+     * 25.07.07
+     * refreshtoken 쿠키에서 가져오는 코드로 변경해서 설정
      */
     @PostMapping("refresh")
-    public ResponseEntity<?> refreshAccessToken(@RequestHeader("Authorization") String authorizationHeader, HttpServletRequest request, HttpServletResponse response)throws IOException {
-        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
-            throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
+    public ResponseEntity<?> refreshAccessToken(@CookieValue(value = "refreshToken", required = false) String refreshToken) {
+
+        if (refreshToken == null) {
+            throw new CustomException("Refresh Token이 쿠키에 존재하지 않습니다.", HttpStatus.UNAUTHORIZED, 401);
         }
 
-        String accessToken = authorizationHeader.substring(7).trim(); // ✅ "Bearer " 제거 후 공백 제거
-        String newAccessToken = userService.refreshAccessToken(accessToken, request, response);
+        String newAccessToken = userService.refreshAccessToken(refreshToken);
 
-        UserTokenResponseDTO tokenResponseDTO = new UserTokenResponseDTO();
-        tokenResponseDTO.setToken(newAccessToken);
-        return ResponseEntity.ok(new ApiResponse<>(200, "토큰 재발급 하였습니다.", tokenResponseDTO));
-
+        return ResponseEntity.ok(new ApiResponse<>(200, "토큰 재발급 하였습니다.", new UserTokenResponseDTO(newAccessToken, refreshToken)));
     }
 
     /**
      * 로그아웃 - Redis에서 Refresh Token 삭제
      */
     @PostMapping("logout")
-    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authorizationHeader, HttpServletRequest request, HttpServletResponse response)throws IOException {
+    public ResponseEntity<?> logout(@RequestHeader("Authorization") String authorizationHeader) {
         if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             throw new CustomException("잘못된 토큰 형식입니다.", HttpStatus.BAD_REQUEST, 400);
         }
@@ -104,7 +101,7 @@ public class UserController {
         // ✅ "Bearer " 제거 후 순수한 Access Token 추출
         String accessToken = authorizationHeader.substring(7).trim();
 
-        userService.logout(accessToken, request, response);
+        userService.logout(accessToken);
         return ResponseEntity.ok(new ApiResponse<>(200, "로그아웃 했습니다.", null));
     }
 

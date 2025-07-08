@@ -120,7 +120,7 @@ public class UserService {
     /**
      * 로그인 서비스 동작
      */
-    public String login(LoginRequestDTO loginRequestDTO){
+    public UserTokenResponseDTO login(LoginRequestDTO loginRequestDTO){
         String loginId = loginRequestDTO.getLoginId();
         String password = loginRequestDTO.getPassword();
 
@@ -145,41 +145,32 @@ public class UserService {
         redisTemplate.opsForHash().put(user.getUserId().toString(), "last_activity_time", System.currentTimeMillis());
 
 
-        return accessToken;
+        return new UserTokenResponseDTO(accessToken, refreshToken);
     }
 
 
     /**
      * Access Token이 만료되었을 때 Refresh Token을 검증하여 새로운 Access Token 발급
      */
-    public String refreshAccessToken(String accessToken, HttpServletRequest request, HttpServletResponse response) throws IOException{
-        Long userId;
-
-        if (jwtUtil.validateToken(accessToken)) {
-            userId = jwtUtil.getUserId(accessToken);
-        } else {
-            userId = jwtUtil.getUserIdIfSignatureValid(accessToken);
+    public String refreshAccessToken(String refreshToken) {
+        if (!jwtUtil.validateToken(refreshToken)) {
+            throw new CustomException("유효하지 않은 Refresh Token입니다.", HttpStatus.UNAUTHORIZED, 401);
         }
 
-        // ✅ 변조된 토큰이면 차단 (에러 메시지를 request에 저장)
+        Long userId = jwtUtil.getUserId(refreshToken);
         if (userId == null) {
-            request.setAttribute("errorMessage", "유효하지 않은 토큰입니다.");
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return null;
+            throw new CustomException("토큰 사용자 정보를 확인할 수 없습니다.", HttpStatus.UNAUTHORIZED, 401);
         }
 
-        // ✅ Redis에서 Refresh Token 존재 여부 확인
-        String storedRefreshToken = (String) redisTemplate.opsForHash().get(userId.toString(), "refresh_token");
-
-        if (storedRefreshToken == null) {
-            request.setAttribute("errorMessage", "로그인 세션이 만료되었습니다. 다시 로그인해 주세요.");
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-            return null;
+        String storedToken = (String) redisTemplate.opsForHash().get(userId.toString(), "refresh_token");
+        if (storedToken == null || !storedToken.equals(refreshToken)) {
+            throw new CustomException("Refresh Token이 일치하지 않거나 세션이 만료되었습니다.", HttpStatus.UNAUTHORIZED, 402);
         }
 
-        // ✅ 새로운 Access Token 발급
-        JwtUserInfo info = new JwtUserInfo(userId, jwtUtil.getUsername(accessToken),
-                jwtUtil.getRole(accessToken), jwtUtil.getManagedRegions(accessToken));
+        JwtUserInfo info = new JwtUserInfo(userId,
+                jwtUtil.getUsername(refreshToken),
+                jwtUtil.getRole(refreshToken),
+                jwtUtil.getManagedRegions(refreshToken));
 
         return jwtUtil.createAccessToken(info);
     }
@@ -188,13 +179,13 @@ public class UserService {
     /**
      * 로그아웃: Redis에서 Refresh Token 삭제
      */
-    public void logout(String accessToken, HttpServletRequest request, HttpServletResponse response) throws IOException {
-        if (jwtUtil.validateToken(accessToken)) {
-            Long userId = jwtUtil.getUserId(accessToken);
-            redisTemplate.delete(userId.toString());  // ✅ Redis에서 Refresh Token 삭제
-        } else {
+    public void logout(String accessToken) {
+        if (!jwtUtil.validateToken(accessToken)) {
             throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
         }
+
+        Long userId = jwtUtil.getUserId(accessToken);
+        redisTemplate.delete(userId.toString()); // ✅ refresh token + last_activity_time 전부 삭제
     }
 
 

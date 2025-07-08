@@ -1,12 +1,14 @@
 package charge.station.monitor.config.jwt;
 
 import charge.station.monitor.config.auth.CustomUserDetails;
+import charge.station.monitor.dto.error.CustomException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -77,6 +79,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 SecurityContextHolder.getContext().setAuthentication(authenticationToken);
                 //토큰에서 고유id, 이름, 관리레벨, 관리구역 꺼내오기 가능.
+            }
+            else {
+                // ✅ 유효하지 않은 토큰일 경우 (만료 포함)
+                throw new CustomException("Access Token이 만료되었거나 유효하지 않습니다. 재발급이 필요합니다.", HttpStatus.UNAUTHORIZED, 401);
             }
 
         }
