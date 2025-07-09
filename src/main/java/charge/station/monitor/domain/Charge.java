@@ -45,6 +45,7 @@ public class Charge {
         this.chargeNum = chargeNum;
         this.instlLc = instlLc;
         this.center = center;
+        this.chargeSttus = new ChargeSttus(this);
     }
 }
 

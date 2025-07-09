@@ -2,6 +2,7 @@ package charge.station.monitor.service.history;
 
 import charge.station.monitor.config.jwt.JwtUtil;
 import charge.station.monitor.domain.Charge;
+import charge.station.monitor.domain.ChargeSttus;
 import charge.station.monitor.domain.history.FaultHistory;
 import charge.station.monitor.domain.history.QFaultHistory;
 import charge.station.monitor.dto.error.CustomException;
@@ -47,7 +48,7 @@ public class FaultHistoryService {
      * 고장 등록
      */
     @Transactional
-    public void enroll(HistoryCreateFaultRequestDTO dto){
+    public Long enroll(HistoryCreateFaultRequestDTO dto){
 
         Charge charge = chargeRepository.findById(dto.getChargeId()).orElseThrow(
                 () -> new CustomException("유효하지 않은 충전소 정보입니다 : " + dto.getChargeId(), HttpStatus.NOT_FOUND, 400));
@@ -56,6 +57,10 @@ public class FaultHistoryService {
         faultHistory.enroll(LocalDateTime.now(), charge, dto.getFaultReason());
         faultHistoryRepository.save(faultHistory);
 
+        ChargeSttus chargeSttus = charge.getChargeSttus();
+        chargeSttus.reportFault();
+
+        return faultHistory.getFaultHistoryId();
     }
 
 
@@ -63,7 +68,7 @@ public class FaultHistoryService {
      * 고장 사후 처리 완료(수정)
      */
     @Transactional
-    public void update(HistoryUpdateFaultRequestDTO dto){
+    public Long update(HistoryUpdateFaultRequestDTO dto){
 
         FaultHistory history = faultHistoryRepository.findById(dto.getFaultId()).orElseThrow(() -> {
             // ✅ 로그에 남기기
@@ -73,6 +78,12 @@ public class FaultHistoryService {
 
         history.update(LocalDateTime.now(), dto.getFaultReason());
 
+        Charge charge = history.getCharge();
+
+        ChargeSttus chargeSttus = charge.getChargeSttus();
+        chargeSttus.recoverFault();
+
+        return history.getFaultHistoryId();
     }
 
 
@@ -91,13 +102,14 @@ public class FaultHistoryService {
         // 1) 센터 ID 목록 생성
         List<Long> centerIds = new ArrayList<>();
 
+        if(!jwtUtil.validateToken(accessToken)){
+            throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
+        }
+
+
         if (historyMainRequestDTO.getCenterId() == null) {
-            if (jwtUtil.validateToken(accessToken)) {
-                List<String> managedRegions = jwtUtil.getManagedRegions(accessToken);
-                centerIds = managedRegions.stream().map(Long::parseLong).collect(Collectors.toList());
-            } else {
-                throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
-            }
+            List<String> managedRegions = jwtUtil.getManagedRegions(accessToken);
+            centerIds = managedRegions.stream().map(Long::parseLong).collect(Collectors.toList());
         } else {
             centerIds.add(historyMainRequestDTO.getCenterId());
         }
@@ -140,11 +152,10 @@ public class FaultHistoryService {
             builder.and(faultHistory.charge.center.centerId.in(centerIds));
         }
 
-        //충전기id를 알아서 특정 조회하기에는 좀 어려움이 있지 않나?
-//        // 2) 충전기 ID
-//        if (requestDTO.getChargeId() != null) {
-//            builder.and(faultHistory.charge.chargeId.eq(requestDTO.getChargeId()));
-//        }
+        // 2) 충전기 ID
+        if (requestDTO.getChargeId() != null) {
+            builder.and(faultHistory.charge.chargeId.eq(requestDTO.getChargeId()));
+        }
 
         // 3) 기간 설정
         if (requestDTO.getStartTime() != null && requestDTO.getEndTime() != null) {

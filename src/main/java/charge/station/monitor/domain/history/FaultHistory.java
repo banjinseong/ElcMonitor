@@ -35,9 +35,8 @@ public class FaultHistory {
     private Charge charge; // 충전소 ID (외래키)
 
     @Builder
-    public FaultHistory(LocalDateTime recordTime, LocalDateTime releaseTime, Boolean procSttus, Charge charge, String faultReason) {
+    public FaultHistory(LocalDateTime recordTime, Boolean procSttus, Charge charge, String faultReason) {
         this.recordTime = recordTime;
-        this.releaseTime = releaseTime;
         this.procSttus = procSttus;
         this.charge = charge;
         this.faultReason = faultReason;
@@ -49,8 +48,8 @@ public class FaultHistory {
         this.procSttus = false;
     }
 
-    public void update(LocalDateTime recordTime, String faultReason){
-        this.recordTime = recordTime;
+    public void update(LocalDateTime releaseTime, String faultReason){
+        this.releaseTime = releaseTime;
         this.faultReason = faultReason;
         this.procSttus = true;
     }

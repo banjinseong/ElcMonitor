@@ -36,6 +36,7 @@ public class FireAlertHistory {
         this.recordTime = recordTime;
         this.charge = charge;
         this.type = type;
+        this.procSttus = false;
     }
 
 

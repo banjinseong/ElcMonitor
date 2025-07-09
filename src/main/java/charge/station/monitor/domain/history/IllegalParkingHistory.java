@@ -35,12 +35,12 @@ public class IllegalParkingHistory {
     private Charge charge; // 충전소 ID (외래키)
 
     @Builder
-    public IllegalParkingHistory(String carNum, LocalDateTime recordTime, String type, Boolean procSttus, Charge charge) {
+    public IllegalParkingHistory(String carNum, LocalDateTime recordTime, String type, Charge charge) {
         this.carNum = carNum;
         this.recordTime = recordTime;
         this.type = type;
-        this.procSttus = procSttus;
         this.charge = charge;
+        this.procSttus = false;
     }
 
     public void writeProcSttus() {

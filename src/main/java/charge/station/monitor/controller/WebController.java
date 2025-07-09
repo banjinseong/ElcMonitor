@@ -79,8 +79,8 @@ public class WebController {
     @PostMapping("/create/fault")
     public ResponseEntity<?> createFaultHistory(@RequestBody @Valid HistoryCreateFaultRequestDTO historyCreateFaultRequestDTO){
 
-        faultHistoryService.enroll(historyCreateFaultRequestDTO);
-        return ResponseEntity.ok(new ApiResponse<>(200, "고장처리 하셨습니다.", null));
+        Long id = faultHistoryService.enroll(historyCreateFaultRequestDTO);
+        return ResponseEntity.ok(new ApiResponse<>(200, "고장처리 하셨습니다.", id));
     }
 
 
@@ -91,8 +91,8 @@ public class WebController {
     public ResponseEntity<?> updateFaultHistory(@RequestBody @Valid HistoryUpdateFaultRequestDTO historyUpdateFaultRequestDTO){
 
 
-        faultHistoryService.update(historyUpdateFaultRequestDTO);
-        return ResponseEntity.ok(new ApiResponse<>(200, "정상처리 하셨습니다.", null));
+        Long id = faultHistoryService.update(historyUpdateFaultRequestDTO);
+        return ResponseEntity.ok(new ApiResponse<>(200, "정상처리 하셨습니다.", id));
 
 
     }

@@ -125,7 +125,6 @@ public class RawDataTransaction {
                     .carNum(chargeCacheDTO.getCarNum())
                     .recordTime(LocalDateTime.now())
                     .type("점유시간 초과")
-                    .procSttus(false)
                     .charge(charge)
                     .build();
             illegalParkingHistoryRepository.save(illegalParkingHistory);

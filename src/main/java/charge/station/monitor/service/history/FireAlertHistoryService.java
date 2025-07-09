@@ -50,13 +50,13 @@ public class FireAlertHistoryService {
         // 1) 센터 ID 목록 생성
         List<Long> centerIds = new ArrayList<>();
 
+        if(!jwtUtil.validateToken(accessToken)){
+            throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
+        }
+
         if (historyMainRequestDTO.getCenterId() == null) {
-            if (jwtUtil.validateToken(accessToken)) {
-                List<String> managedRegions = jwtUtil.getManagedRegions(accessToken);
-                centerIds = managedRegions.stream().map(Long::parseLong).collect(Collectors.toList());
-            } else {
-                throw new CustomException("유효하지 않은 토큰입니다.", HttpStatus.UNAUTHORIZED, 401);
-            }
+            List<String> managedRegions = jwtUtil.getManagedRegions(accessToken);
+            centerIds = managedRegions.stream().map(Long::parseLong).collect(Collectors.toList());
         } else {
             centerIds.add(historyMainRequestDTO.getCenterId());
         }
@@ -100,10 +100,10 @@ public class FireAlertHistoryService {
             builder.and(fireAlertHistory.charge.center.centerId.in(centerIds));
         }
 
-//        // 2) 충전기 ID
-//        if (requestDTO.getChargeId() != null) {
-//            builder.and(fireAlertHistory.charge.chargeId.eq(requestDTO.getChargeId()));
-//        }
+        // 2) 충전기 ID
+        if (requestDTO.getChargeId() != null) {
+            builder.and(fireAlertHistory.charge.chargeId.eq(requestDTO.getChargeId()));
+        }
 
         // 3) 기간 설정
         if (requestDTO.getStartTime() != null && requestDTO.getEndTime() != null) {

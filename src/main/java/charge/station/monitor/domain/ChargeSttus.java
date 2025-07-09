@@ -10,14 +10,13 @@ import lombok.NoArgsConstructor;
 public class ChargeSttus {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "charge_id")
-    private Long chargeId;  // 충전소 ID (외래키)
+    private Long chargeId;  // PK이자 FK
 
     @OneToOne
-    @MapsId
+    @MapsId  // chargeId를 FK이자 PK로 사용
     @JoinColumn(name = "charge_id")
-    private Charge charge;  // 충전소 엔티티 참조
+    private Charge charge;
 
     @Column(name = "seat_sttus")
     private Boolean seatSttus = false;  // 자리 유무 (기본값: false)
@@ -27,6 +26,12 @@ public class ChargeSttus {
 
     @Column(name = "fault_sttus")
     private Boolean faultSttus = false;  // 고장 유무 (기본값: false)
+
+
+    public ChargeSttus(Charge charge) {
+        this.charge = charge;
+    }
+
 
     // 자리 유무 변경 (입차)
     public void enter() {
