@@ -50,19 +50,17 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 Long lastActivityTime = (Long) redisTemplate.opsForHash().get(userKey, "last_activity_time");
 
                 if (lastActivityTime == null) {
-                    request.setAttribute("errorMessage", "유효하지 않은 요청입니다. 다시 로그인 해주세요.");
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                    return;
+                    throw new CustomException("유효하지 않은 요청입니다. 다시 로그인 해주세요.",
+                            HttpStatus.UNAUTHORIZED, 401);
                 }
 
                 long currentTime = System.currentTimeMillis();
 
                 // ✅ 일정시간 이상 미활동 시 자동 로그아웃 처리
                 if ((currentTime - lastActivityTime) > 360000) {
-                    redisTemplate.delete(userKey); // 🔹 Redis에서 로그아웃 처리
-                    request.setAttribute("errorMessage", "장시간 활동이 없어 자동 로그아웃되었습니다.");
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
-                    return;
+                    redisTemplate.delete(userKey);
+                    throw new CustomException("장시간 활동이 없어 자동 로그아웃되었습니다.",
+                            HttpStatus.UNAUTHORIZED, 401);
                 }
 
                 redisTemplate.opsForHash().put(userKey, "last_activity_time", currentTime);
