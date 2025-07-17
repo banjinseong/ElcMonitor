@@ -320,7 +320,7 @@ public class RawDataService {
             }
             //2. 충전중 + 현재 전력값이 낮은경우 -> 충전취소
             else if(chargeSttus.getPowerSttus() && currentPower<10){
-                chargeSttus.startCharging();
+                chargeSttus.stopCharging();
             }
 
 
@@ -339,7 +339,7 @@ public class RawDataService {
 
         // 처음 증가된 경우라면 (값이 없어서 새로 1이 됨), TTL 1분 설정
         if (count != null && count == 1L) {
-            redisTemplate.expire(key, 1, TimeUnit.MINUTES);
+            redisTemplate.expire(key, 2, TimeUnit.MINUTES);
         }
 
         // 이상 횟수가 기준을 초과한 경우 → 값을 0으로 재설정 (throw 대신)

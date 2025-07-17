@@ -116,6 +116,10 @@ public class RawDataTransaction {
             chargeSttus.stopCharging();
         }
 
+
+        chargeSttus.exit(); //현황에서 출차처리.
+        carHistory.exit(LocalDateTime.now()); // 출차 시간 업데이트
+
         /**
          * 출차시 주차한 기록의 시간을 판별 후 불법 주정차 확인.
          * 14시간 이상 주차하면 과태료
@@ -130,12 +134,6 @@ public class RawDataTransaction {
             illegalParkingHistoryRepository.save(illegalParkingHistory);
 
         }
-
-
-        chargeSttus.exit(); //현황에서 출차처리.
-        carHistory.exit(LocalDateTime.now()); // 출차 시간 업데이트
-
-
 
 
 
